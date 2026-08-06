@@ -1,10 +1,15 @@
 # NANNAI Nutrição
 
+<p align="center">
+  <img src="src/assets/logo-nannai.png" alt="NANNAI Nutrição" width="280" />
+</p>
+
 PWA de auditorias de segurança alimentar, higiene, estrutura, manipulação e boas práticas.
 
 **Slogan:** Alimentar bem, viver melhor  
 **Unidade inicial:** NANNAI Muro Alto
 
+**Logo:** [`src/assets/logo-nannai.png`](src/assets/logo-nannai.png) · também em [`public/logo-nannai.png`](public/logo-nannai.png)
 ## Stack
 
 - React + TypeScript + Vite

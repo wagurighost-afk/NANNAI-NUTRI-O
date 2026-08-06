@@ -16,6 +16,8 @@ dev-dist
 .env.local
 serviceAccount.json
 *.pem
+*.db
+*.bak
 
 # Editor directories and files
 .vscode/*

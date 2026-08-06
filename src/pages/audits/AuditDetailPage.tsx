@@ -42,7 +42,7 @@ export function AuditDetailPage() {
   if (!audit) return <Card>Auditoria não encontrada.</Card>;
 
   const totals = computeAuditTotals(audit.answers, questionnaire);
-  const canEmail = canSendReportEmail(user?.role);
+  const canEmail = canSendReportEmail(user?.role) && audit.status === 'concluida';
 
   const handleGeneratePdf = async () => {
     setPdfBusy(true);
@@ -113,7 +113,7 @@ export function AuditDetailPage() {
                 <Button>Continuar</Button>
               </Link>
             )}
-            {true && (
+            {audit.status === 'concluida' ? (
               <>
                 <Button
                   variant="secondary"
@@ -134,6 +134,14 @@ export function AuditDetailPage() {
                   </Button>
                 )}
               </>
+            ) : (
+              <Button
+                variant="secondary"
+                disabled={pdfBusy}
+                onClick={handleGeneratePdf}
+              >
+                <FileDown size={16} /> {pdfBusy ? 'Gerando…' : 'PDF'}
+              </Button>
             )}
           </div>
         }

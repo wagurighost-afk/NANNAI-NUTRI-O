@@ -1,0 +1,83 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Outfit:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Cormorant Garamond", Georgia, serif;
+  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
+
+  --color-cream-50: #fdfaf6;
+  --color-cream-100: #f7f3eb;
+  --color-cream-200: #ebe3d4;
+  --color-cream-300: #ddd2bc;
+
+  --color-olive-50: #f4f6ee;
+  --color-olive-100: #e5ebd6;
+  --color-olive-200: #cdd9b0;
+  --color-olive-300: #aebb84;
+  --color-olive-400: #8a9c5a;
+  --color-olive-500: #606c38;
+  --color-olive-600: #566832;
+  --color-olive-700: #445129;
+  --color-olive-800: #384224;
+  --color-olive-900: #303820;
+
+  --color-gold-50: #fbf7ec;
+  --color-gold-100: #f5ebce;
+  --color-gold-200: #ebd59a;
+  --color-gold-300: #debb64;
+  --color-gold-400: #d0a445;
+  --color-gold-500: #b89c72;
+  --color-gold-600: #9a7534;
+  --color-gold-700: #7c592c;
+  --color-gold-800: #68492a;
+  --color-gold-900: #593d27;
+
+  --color-wine-50: #f7f3f0;
+  --color-wine-100: #efe7e1;
+  --color-wine-200: #e0d0c6;
+  --color-wine-300: #c4a894;
+  --color-wine-400: #8f6b52;
+  --color-wine-500: #6b4634;
+  --color-wine-600: #3c2415;
+  --color-wine-700: #2f1c11;
+  --color-wine-800: #24160e;
+  --color-wine-900: #1a100a;
+
+  --color-ink: #3c2415;
+  --color-ink-muted: #6b5f57;
+}
+
+@layer base {
+  html {
+    @apply antialiased;
+  }
+
+  body {
+    @apply m-0 min-h-dvh bg-cream-100 font-sans text-ink;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 100% -10%, rgb(232 208 211 / 0.35), transparent),
+      radial-gradient(ellipse 60% 40% at 0% 100%, rgb(205 217 176 / 0.28), transparent);
+  }
+
+  #root {
+    @apply min-h-dvh;
+  }
+
+  * {
+    @apply box-border;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .shadow-soft {
+    box-shadow: 0 1px 2px rgb(44 36 32 / 0.04), 0 8px 24px rgb(44 36 32 / 0.06);
+  }
+
+  .shadow-card {
+    box-shadow: 0 1px 3px rgb(44 36 32 / 0.05), 0 4px 16px rgb(92 46 53 / 0.04);
+  }
+}

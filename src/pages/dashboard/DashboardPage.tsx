@@ -15,10 +15,10 @@ import { PageHeader, StatCard, Card, Badge } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { useAppStore } from '../../stores/appStore';
 import {
-  mockScoreEvolution,
-  mockSectorResults,
-  mockTopNonConformities,
-} from '../../data/mock';
+  buildScoreEvolution,
+  buildSectorResults,
+  buildTopNonConformities,
+} from '../../utils/indicators';
 import {
   actionStatusColors,
   actionStatusLabels,
@@ -28,6 +28,7 @@ import {
 export function DashboardPage() {
   const audits = useAppStore((s) => s.audits);
   const actionPlans = useAppStore((s) => s.actionPlans);
+  const questionnaire = useAppStore((s) => s.questionnaire);
 
   const completed = audits.filter((a) => a.status === 'concluida');
   const inProgress = audits.filter((a) => a.status === 'em_andamento');
@@ -39,10 +40,12 @@ export function DashboardPage() {
             10,
         ) / 10
       : 0;
-  const openNc = actionPlans.filter(
-    (p) => p.status !== 'concluido',
-  ).length;
+  const openNc = actionPlans.filter((p) => p.status !== 'concluido').length;
   const overdue = actionPlans.filter((p) => p.status === 'atrasado').length;
+
+  const scoreEvolution = buildScoreEvolution(audits);
+  const sectorResults = buildSectorResults(audits);
+  const topNcs = buildTopNonConformities(audits, questionnaire.sections);
 
   return (
     <div>
@@ -78,30 +81,34 @@ export function DashboardPage() {
           <h3 className="font-display text-lg font-semibold text-wine-700">
             Evolução da pontuação
           </h3>
-          <p className="mb-4 text-xs text-ink-muted">Últimos 6 meses</p>
+          <p className="mb-4 text-xs text-ink-muted">Com base nas auditorias concluídas</p>
           <div className="h-56">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={mockScoreEvolution}>
-                <defs>
-                  <linearGradient id="scoreFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#6b7f3a" stopOpacity={0.35} />
-                    <stop offset="100%" stopColor="#6b7f3a" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#ebe3d4" />
-                <XAxis dataKey="period" tick={{ fontSize: 12 }} stroke="#6b5f57" />
-                <YAxis domain={[60, 100]} tick={{ fontSize: 12 }} stroke="#6b5f57" />
-                <Tooltip />
-                <Area
-                  type="monotone"
-                  dataKey="score"
-                  stroke="#6b7f3a"
-                  fill="url(#scoreFill)"
-                  strokeWidth={2}
-                  name="Pontuação"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            {scoreEvolution.length === 0 ? (
+              <EmptyChartHint text="Conclua auditorias para ver a evolução da pontuação." />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={scoreEvolution}>
+                  <defs>
+                    <linearGradient id="scoreFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#6b7f3a" stopOpacity={0.35} />
+                      <stop offset="100%" stopColor="#6b7f3a" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#ebe3d4" />
+                  <XAxis dataKey="period" tick={{ fontSize: 12 }} stroke="#6b5f57" />
+                  <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} stroke="#6b5f57" />
+                  <Tooltip />
+                  <Area
+                    type="monotone"
+                    dataKey="score"
+                    stroke="#6b7f3a"
+                    fill="url(#scoreFill)"
+                    strokeWidth={2}
+                    name="Pontuação"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </Card>
 
@@ -111,20 +118,29 @@ export function DashboardPage() {
           </h3>
           <p className="mb-4 text-xs text-ink-muted">Conformidade média (%)</p>
           <div className="h-56">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={mockSectorResults} layout="vertical" margin={{ left: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#ebe3d4" />
-                <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 12 }} />
-                <YAxis
-                  type="category"
-                  dataKey="sectorName"
-                  width={110}
-                  tick={{ fontSize: 11 }}
-                />
-                <Tooltip />
-                <Bar dataKey="conformity" fill="#b8954a" radius={[0, 6, 6, 0]} name="Conformidade" />
-              </BarChart>
-            </ResponsiveContainer>
+            {sectorResults.length === 0 ? (
+              <EmptyChartHint text="Cadastre setores e conclua auditorias para ver os resultados." />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={sectorResults} layout="vertical" margin={{ left: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#ebe3d4" />
+                  <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 12 }} />
+                  <YAxis
+                    type="category"
+                    dataKey="sectorName"
+                    width={110}
+                    tick={{ fontSize: 11 }}
+                  />
+                  <Tooltip />
+                  <Bar
+                    dataKey="conformity"
+                    fill="#b8954a"
+                    radius={[0, 6, 6, 0]}
+                    name="Conformidade"
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </Card>
       </div>
@@ -134,22 +150,28 @@ export function DashboardPage() {
           <h3 className="mb-3 font-display text-lg font-semibold text-wine-700">
             Principais não conformidades
           </h3>
-          <ul className="space-y-3">
-            {mockTopNonConformities.map((item) => (
-              <li
-                key={item.questionText}
-                className="flex items-start justify-between gap-3 border-b border-cream-200 pb-3 last:border-0 last:pb-0"
-              >
-                <div>
-                  <p className="text-sm font-medium text-ink">{item.questionText}</p>
-                  <p className="text-xs text-ink-muted">{item.sectionName}</p>
-                </div>
-                <Badge className="border-wine-200 bg-wine-50 text-wine-700">
-                  {item.count}x
-                </Badge>
-              </li>
-            ))}
-          </ul>
+          {topNcs.length === 0 ? (
+            <p className="text-sm text-ink-muted">
+              Nenhuma não conformidade registrada ainda.
+            </p>
+          ) : (
+            <ul className="space-y-3">
+              {topNcs.map((item) => (
+                <li
+                  key={item.questionText}
+                  className="flex items-start justify-between gap-3 border-b border-cream-200 pb-3 last:border-0 last:pb-0"
+                >
+                  <div>
+                    <p className="text-sm font-medium text-ink">{item.questionText}</p>
+                    <p className="text-xs text-ink-muted">{item.sectionName}</p>
+                  </div>
+                  <Badge className="border-wine-200 bg-wine-50 text-wine-700">
+                    {item.count}x
+                  </Badge>
+                </li>
+              ))}
+            </ul>
+          )}
         </Card>
 
         <Card>
@@ -161,30 +183,44 @@ export function DashboardPage() {
               Ver todos
             </Link>
           </div>
-          <ul className="space-y-3">
-            {actionPlans.slice(0, 5).map((p) => (
-              <li key={p.id}>
-                <Link
-                  to={`/app/planos-de-acao/${p.id}`}
-                  className="flex items-start justify-between gap-3 rounded-xl p-2 transition hover:bg-cream-100"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-ink">
-                      {p.nonConformityDescription}
-                    </p>
-                    <p className="text-xs text-ink-muted">
-                      {p.sectorName} · Prazo {formatDate(p.dueDate)}
-                    </p>
-                  </div>
-                  <Badge className={actionStatusColors[p.status]}>
-                    {actionStatusLabels[p.status]}
-                  </Badge>
-                </Link>
-              </li>
-            ))}
-          </ul>
+          {actionPlans.length === 0 ? (
+            <p className="text-sm text-ink-muted">
+              Nenhum plano de ação cadastrado ainda.
+            </p>
+          ) : (
+            <ul className="space-y-3">
+              {actionPlans.slice(0, 5).map((p) => (
+                <li key={p.id}>
+                  <Link
+                    to={`/app/planos-de-acao/${p.id}`}
+                    className="flex items-start justify-between gap-3 rounded-xl p-2 transition hover:bg-cream-100"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-ink">
+                        {p.nonConformityDescription}
+                      </p>
+                      <p className="text-xs text-ink-muted">
+                        {p.sectorName} · Prazo {formatDate(p.dueDate)}
+                      </p>
+                    </div>
+                    <Badge className={actionStatusColors[p.status]}>
+                      {actionStatusLabels[p.status]}
+                    </Badge>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
         </Card>
       </div>
+    </div>
+  );
+}
+
+function EmptyChartHint({ text }: { text: string }) {
+  return (
+    <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-cream-300 bg-cream-50 px-4 text-center text-sm text-ink-muted">
+      {text}
     </div>
   );
 }

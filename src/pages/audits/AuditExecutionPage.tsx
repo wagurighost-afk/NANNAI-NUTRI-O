@@ -132,7 +132,7 @@ export function AuditExecutionPage() {
       setActionForm({
         nonConformityDescription: '',
         correctiveAction: '',
-        responsibleId: users.find((u) => u.role === 'responsavel')?.id ?? '',
+        responsibleId: users.find((u) => u.active !== false)?.id ?? '',
         priority: status === 'nao_conforme' ? 'alta' : 'media',
         dueDate: '',
         observations: '',
@@ -155,7 +155,7 @@ export function AuditExecutionPage() {
       nonConformityDescription:
         actionForm.nonConformityDescription || question.text,
       correctiveAction: actionForm.correctiveAction || 'Definir ação corretiva',
-      responsibleId: actionForm.responsibleId || 'u4',
+      responsibleId: actionForm.responsibleId || '',
       responsibleName: responsible?.name ?? 'A definir',
       priority: actionForm.priority,
       dueDate: actionForm.dueDate || new Date().toISOString().slice(0, 10),
@@ -326,7 +326,7 @@ export function AuditExecutionPage() {
             options={[
               { value: '', label: 'Não definido' },
               ...users
-                .filter((u) => u.role === 'responsavel' || u.role === 'gestor')
+                .filter((u) => u.active !== false && u.isActive !== false)
                 .map((u) => ({ value: u.id, label: u.name })),
             ]}
             value={answer.responsibleId ?? ''}
@@ -397,9 +397,12 @@ export function AuditExecutionPage() {
           />
           <Select
             label="Responsável"
-            options={users
-              .filter((u) => u.role === 'responsavel' || u.role === 'gestor')
-              .map((u) => ({ value: u.id, label: u.name }))}
+            options={[
+              { value: '', label: 'A definir' },
+              ...users
+                .filter((u) => u.active !== false && u.isActive !== false)
+                .map((u) => ({ value: u.id, label: u.name })),
+            ]}
             value={actionForm.responsibleId}
             onChange={(e) =>
               setActionForm((f) => ({ ...f, responsibleId: e.target.value }))

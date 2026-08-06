@@ -133,23 +133,14 @@ export function buildUserProfile(input: {
   };
 }
 
-/** Initial administrators seeded into Auth + Firestore */
+/** Initial administrator seeded into Auth + Firestore */
 export const INITIAL_ADMINS = [
-  {
-    name: 'Mauro José',
-    email: 'mauro.jose@nannai.com.br',
-    professionalRole: 'Administrador' as const,
-    role: 'admin' as const,
-    /** Temporary seed password — change after first login in production */
-    seedPasswordEnv: 'SEED_ADMIN_MAURO_PASSWORD',
-    defaultSeedPassword: 'NannaiAdmin@2026',
-  },
   {
     name: 'Renata Fernanda',
     email: 'renata.fernanda@nannai.com.br',
     professionalRole: 'Nutricionista' as const,
     role: 'admin' as const,
     seedPasswordEnv: 'SEED_ADMIN_RENATA_PASSWORD',
-    defaultSeedPassword: 'NannaiAdmin@2026',
+    defaultSeedPassword: 'Nannai@2026',
   },
 ] as const;

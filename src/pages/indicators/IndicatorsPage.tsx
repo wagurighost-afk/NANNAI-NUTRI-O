@@ -13,14 +13,15 @@ import {
 import { PageHeader, Card, StatCard } from '../../components/ui/Card';
 import { useAppStore } from '../../stores/appStore';
 import {
-  mockScoreEvolution,
-  mockSectorResults,
-  mockTopNonConformities,
-} from '../../data/mock';
+  buildScoreEvolution,
+  buildSectorResults,
+  buildTopNonConformities,
+} from '../../utils/indicators';
 
 export function IndicatorsPage() {
   const audits = useAppStore((s) => s.audits);
   const plans = useAppStore((s) => s.actionPlans);
+  const questionnaire = useAppStore((s) => s.questionnaire);
   const completed = audits.filter((a) => a.status === 'concluida');
   const avg =
     completed.length > 0
@@ -28,6 +29,10 @@ export function IndicatorsPage() {
           completed.reduce((a, b) => a + b.conformityPercent, 0) / completed.length,
         )
       : 0;
+
+  const scoreEvolution = buildScoreEvolution(audits);
+  const sectorResults = buildSectorResults(audits);
+  const topNcs = buildTopNonConformities(audits, questionnaire.sections);
 
   return (
     <div>
@@ -57,29 +62,33 @@ export function IndicatorsPage() {
             Evolução por período
           </h3>
           <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={mockScoreEvolution}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#ebe3d4" />
-                <XAxis dataKey="period" />
-                <YAxis domain={[60, 100]} />
-                <Tooltip />
-                <Legend />
-                <Area
-                  type="monotone"
-                  dataKey="score"
-                  name="Pontuação"
-                  stroke="#5c2e35"
-                  fill="#e8d0d3"
-                />
-                <Area
-                  type="monotone"
-                  dataKey="conformity"
-                  name="Conformidade"
-                  stroke="#6b7f3a"
-                  fill="#e5ebd6"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            {scoreEvolution.length === 0 ? (
+              <EmptyHint text="Sem dados ainda. Os indicadores aparecem após auditorias concluídas." />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={scoreEvolution}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#ebe3d4" />
+                  <XAxis dataKey="period" />
+                  <YAxis domain={[0, 100]} />
+                  <Tooltip />
+                  <Legend />
+                  <Area
+                    type="monotone"
+                    dataKey="score"
+                    name="Pontuação"
+                    stroke="#5c2e35"
+                    fill="#e8d0d3"
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="conformity"
+                    name="Conformidade"
+                    stroke="#6b7f3a"
+                    fill="#e5ebd6"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </Card>
 
@@ -88,15 +97,31 @@ export function IndicatorsPage() {
             Conformidade por setor
           </h3>
           <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={mockSectorResults}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#ebe3d4" />
-                <XAxis dataKey="sectorName" tick={{ fontSize: 10 }} interval={0} angle={-20} textAnchor="end" height={60} />
-                <YAxis domain={[0, 100]} />
-                <Tooltip />
-                <Bar dataKey="conformity" name="Conformidade %" fill="#b8954a" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            {sectorResults.length === 0 ? (
+              <EmptyHint text="Cadastre setores e realize auditorias para popular este gráfico." />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={sectorResults}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#ebe3d4" />
+                  <XAxis
+                    dataKey="sectorName"
+                    tick={{ fontSize: 10 }}
+                    interval={0}
+                    angle={-20}
+                    textAnchor="end"
+                    height={60}
+                  />
+                  <YAxis domain={[0, 100]} />
+                  <Tooltip />
+                  <Bar
+                    dataKey="conformity"
+                    name="Conformidade %"
+                    fill="#b8954a"
+                    radius={[6, 6, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </Card>
       </div>
@@ -105,24 +130,38 @@ export function IndicatorsPage() {
         <h3 className="mb-3 font-display text-lg font-semibold text-wine-700">
           Ranking de não conformidades
         </h3>
-        <ol className="space-y-2">
-          {mockTopNonConformities.map((item, i) => (
-            <li
-              key={item.questionText}
-              className="flex items-center justify-between rounded-xl bg-cream-50 px-3 py-2"
-            >
-              <span className="text-sm">
-                <span className="mr-2 font-display font-semibold text-wine-700">
-                  {i + 1}.
+        {topNcs.length === 0 ? (
+          <p className="text-sm text-ink-muted">
+            Nenhuma não conformidade registrada ainda.
+          </p>
+        ) : (
+          <ol className="space-y-2">
+            {topNcs.map((item, i) => (
+              <li
+                key={item.questionText}
+                className="flex items-center justify-between rounded-xl bg-cream-50 px-3 py-2"
+              >
+                <span className="text-sm">
+                  <span className="mr-2 font-display font-semibold text-wine-700">
+                    {i + 1}.
+                  </span>
+                  {item.questionText}
+                  <span className="text-ink-muted"> — {item.sectionName}</span>
                 </span>
-                {item.questionText}
-                <span className="text-ink-muted"> — {item.sectionName}</span>
-              </span>
-              <span className="text-sm font-semibold text-olive-700">{item.count}</span>
-            </li>
-          ))}
-        </ol>
+                <span className="text-sm font-semibold text-olive-700">{item.count}</span>
+              </li>
+            ))}
+          </ol>
+        )}
       </Card>
+    </div>
+  );
+}
+
+function EmptyHint({ text }: { text: string }) {
+  return (
+    <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-cream-300 bg-cream-50 px-4 text-center text-sm text-ink-muted">
+      {text}
     </div>
   );
 }

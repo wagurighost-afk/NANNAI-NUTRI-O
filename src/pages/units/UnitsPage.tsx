@@ -1,9 +1,11 @@
 import { useState } from 'react';
+import { Pencil, Power, Trash2 } from 'lucide-react';
 import { PageHeader, Card, Badge, Modal } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { useAppStore } from '../../stores/appStore';
+import type { Sector } from '../../types';
 
 export function UnitsPage() {
   const units = useAppStore((s) => s.units);
@@ -11,8 +13,12 @@ export function UnitsPage() {
   const users = useAppStore((s) => s.users);
   const addUnit = useAppStore((s) => s.addUnit);
   const addSector = useAppStore((s) => s.addSector);
+  const updateSector = useAppStore((s) => s.updateSector);
+  const deleteSector = useAppStore((s) => s.deleteSector);
+
   const [unitModal, setUnitModal] = useState(false);
   const [sectorModal, setSectorModal] = useState(false);
+  const [editingSector, setEditingSector] = useState<Sector | null>(null);
   const [unitForm, setUnitForm] = useState({ name: '', address: '', city: '' });
   const [sectorForm, setSectorForm] = useState({
     name: '',
@@ -20,21 +26,82 @@ export function UnitsPage() {
     responsibleId: '',
   });
 
+  const openCreateSector = () => {
+    setEditingSector(null);
+    setSectorForm({
+      name: '',
+      unitId: units[0]?.id ?? '',
+      responsibleId: '',
+    });
+    setSectorModal(true);
+  };
+
+  const openEditSector = (sector: Sector) => {
+    setEditingSector(sector);
+    setSectorForm({
+      name: sector.name,
+      unitId: sector.unitId,
+      responsibleId: sector.responsibleId ?? '',
+    });
+    setSectorModal(true);
+  };
+
+  const saveSector = () => {
+    if (!sectorForm.name.trim()) return;
+    if (editingSector) {
+      updateSector(editingSector.id, {
+        name: sectorForm.name.trim(),
+        unitId: sectorForm.unitId,
+        responsibleId: sectorForm.responsibleId || undefined,
+      });
+    } else {
+      addSector({
+        name: sectorForm.name.trim(),
+        unitId: sectorForm.unitId,
+        responsibleId: sectorForm.responsibleId || undefined,
+        active: true,
+      });
+    }
+    setSectorModal(false);
+    setEditingSector(null);
+  };
+
+  const confirmDeleteSector = (sector: Sector) => {
+    if (
+      !window.confirm(
+        `Excluir o setor "${sector.name}"? Esta ação não remove auditorias já registradas.`,
+      )
+    ) {
+      return;
+    }
+    deleteSector(sector.id);
+  };
+
   return (
     <div>
       <PageHeader
         title="Unidades e setores"
-        subtitle="Estrutura operacional — unidade inicial NANNAI Muro Alto"
+        subtitle="Cadastre a estrutura operacional — unidades e setores usados nas auditorias"
         actions={
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setUnitModal(true)}>
               Nova unidade
             </Button>
-            <Button onClick={() => setSectorModal(true)}>Novo setor</Button>
+            <Button onClick={openCreateSector} disabled={units.length === 0}>
+              Novo setor
+            </Button>
           </div>
         }
       />
 
+      {units.length === 0 ? (
+        <Card>
+          <p className="text-sm text-ink-muted">
+            Nenhuma unidade cadastrada. Comece criando a unidade do hotel (ex.: NANNAI
+            Muro Alto) e, em seguida, os setores.
+          </p>
+        </Card>
+      ) : (
       <div className="space-y-4">
         {units.map((unit) => (
           <Card key={unit.id}>
@@ -65,19 +132,66 @@ export function UnitsPage() {
                   return (
                     <li
                       key={s.id}
-                      className="flex items-center justify-between py-2.5 text-sm"
+                      className="flex flex-col gap-2 py-2.5 sm:flex-row sm:items-center sm:justify-between"
                     >
-                      <span className="font-medium text-ink">{s.name}</span>
-                      <span className="text-ink-muted">
-                        {resp?.name ?? 'Sem responsável'}
-                      </span>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-medium text-ink">{s.name}</span>
+                          <Badge
+                            className={
+                              s.active
+                                ? 'border-olive-200 bg-olive-50 text-olive-800'
+                                : 'border-stone-200 bg-stone-100 text-ink-muted'
+                            }
+                          >
+                            {s.active ? 'Ativo' : 'Inativo'}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-ink-muted">
+                          {resp?.name ?? 'Sem responsável'}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openEditSector(s)}
+                        >
+                          <Pencil size={14} />
+                          Editar
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            updateSector(s.id, { active: !s.active })
+                          }
+                        >
+                          <Power size={14} />
+                          {s.active ? 'Desativar' : 'Ativar'}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => confirmDeleteSector(s)}
+                        >
+                          <Trash2 size={14} />
+                          Excluir
+                        </Button>
+                      </div>
                     </li>
                   );
                 })}
+              {sectors.filter((s) => s.unitId === unit.id).length === 0 && (
+                <li className="py-3 text-sm text-ink-muted">
+                  Nenhum setor cadastrado nesta unidade.
+                </li>
+              )}
             </ul>
           </Card>
         ))}
       </div>
+      )}
 
       <Modal open={unitModal} onClose={() => setUnitModal(false)} title="Nova unidade">
         <div className="space-y-3">
@@ -110,7 +224,14 @@ export function UnitsPage() {
         </div>
       </Modal>
 
-      <Modal open={sectorModal} onClose={() => setSectorModal(false)} title="Novo setor">
+      <Modal
+        open={sectorModal}
+        onClose={() => {
+          setSectorModal(false);
+          setEditingSector(null);
+        }}
+        title={editingSector ? 'Editar setor' : 'Novo setor'}
+      >
         <div className="space-y-3">
           <Input
             label="Nome do setor"
@@ -126,11 +247,11 @@ export function UnitsPage() {
             }
           />
           <Select
-            label="Responsável"
+            label="Responsável (usuário do sistema)"
             options={[
               { value: '', label: 'Não definido' },
               ...users
-                .filter((u) => u.role === 'responsavel')
+                .filter((u) => u.active !== false && u.isActive !== false)
                 .map((u) => ({ value: u.id, label: u.name })),
             ]}
             value={sectorForm.responsibleId}
@@ -138,25 +259,8 @@ export function UnitsPage() {
               setSectorForm((f) => ({ ...f, responsibleId: e.target.value }))
             }
           />
-          <Button
-            fullWidth
-            onClick={() => {
-              if (!sectorForm.name) return;
-              addSector({
-                name: sectorForm.name,
-                unitId: sectorForm.unitId,
-                responsibleId: sectorForm.responsibleId || undefined,
-                active: true,
-              });
-              setSectorModal(false);
-              setSectorForm({
-                name: '',
-                unitId: units[0]?.id ?? '',
-                responsibleId: '',
-              });
-            }}
-          >
-            Salvar
+          <Button fullWidth onClick={saveSector}>
+            {editingSector ? 'Salvar alterações' : 'Salvar'}
           </Button>
         </div>
       </Modal>

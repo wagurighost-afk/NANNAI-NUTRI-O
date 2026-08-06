@@ -125,6 +125,6 @@ export const useEmailStore = create<EmailState>()(
           ),
         })),
     }),
-    { name: 'nannai-email-data' },
+    { name: 'nannai-email-data-v3' },
   ),
 );

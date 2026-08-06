@@ -6,6 +6,7 @@ import { Textarea } from '../../components/ui/Textarea';
 import { Select } from '../../components/ui/Select';
 import { Input } from '../../components/ui/Input';
 import { useAppStore } from '../../stores/appStore';
+import { useAuthStore } from '../../stores/authStore';
 import {
   actionStatusColors,
   actionStatusLabels,
@@ -20,6 +21,7 @@ export function ActionPlanDetailPage() {
   const plan = useAppStore((s) => s.actionPlans.find((p) => p.id === id));
   const updateActionPlan = useAppStore((s) => s.updateActionPlan);
   const users = useAppStore((s) => s.users);
+  const currentUser = useAuthStore((s) => s.user);
   const [validationNotes, setValidationNotes] = useState(plan?.validationNotes ?? '');
 
   if (!plan) {
@@ -84,13 +86,16 @@ export function ActionPlanDetailPage() {
           />
           <Select
             label="Responsável"
-            options={users.map((u) => ({ value: u.id, label: u.name }))}
+            options={[
+              { value: '', label: 'A definir' },
+              ...users.map((u) => ({ value: u.id, label: u.name })),
+            ]}
             value={plan.responsibleId}
             onChange={(e) => {
               const u = users.find((x) => x.id === e.target.value);
               updateActionPlan(plan.id, {
                 responsibleId: e.target.value,
-                responsibleName: u?.name ?? plan.responsibleName,
+                responsibleName: u?.name ?? 'A definir',
               });
             }}
           />
@@ -178,7 +183,7 @@ export function ActionPlanDetailPage() {
             onClick={() =>
               updateActionPlan(plan.id, {
                 status: 'concluido',
-                validatedBy: 'Carla Mendes',
+                validatedBy: currentUser?.name ?? 'Administradora',
                 validatedAt: new Date().toISOString(),
                 validationNotes,
               })

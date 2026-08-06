@@ -271,11 +271,10 @@ export function UsersPage() {
 
       <Card className="mb-4">
         <p className="text-sm text-ink-muted">
-          Administradores ativos: <strong>{activeAdmins}</strong> (mínimo: 1).{' '}
-          <strong>Mauro José</strong> (Administrador) e{' '}
-          <strong>Renata Fernanda</strong> (Nutricionista + Admin) têm acesso
-          completo. Renata mantém auditorias, assinaturas, planos de ação e envio
-          de relatórios.
+          Administradores ativos: <strong>{activeAdmins}</strong> (mínimo: 1). A
+          administradora inicial é <strong>Renata Fernanda</strong> (Nutricionista
+          + Administradora). Unidades, setores, usuários, destinatários e
+          auditorias devem ser cadastrados por ela.
         </p>
       </Card>
 

@@ -70,6 +70,8 @@ interface AppState {
   addUserAdminHistory: (entry: UserAdminHistoryEntry) => void;
   addUnit: (unit: Omit<Unit, 'id'>) => void;
   addSector: (sector: Omit<Sector, 'id'>) => void;
+  updateSector: (id: string, patch: Partial<Sector>) => void;
+  deleteSector: (id: string) => void;
   markSynced: () => void;
   setUsers: (users: User[]) => void;
 }
@@ -312,6 +314,18 @@ export const useAppStore = create<AppState>()(
           sectors: [...s.sectors, { ...sector, id: `s-${Date.now()}` }],
         })),
 
+      updateSector: (id, patch) =>
+        set((s) => ({
+          sectors: s.sectors.map((sec) =>
+            sec.id === id ? { ...sec, ...patch } : sec,
+          ),
+        })),
+
+      deleteSector: (id) =>
+        set((s) => ({
+          sectors: s.sectors.filter((sec) => sec.id !== id),
+        })),
+
       markSynced: () =>
         set((s) => ({
           pendingSyncCount: 0,
@@ -322,6 +336,6 @@ export const useAppStore = create<AppState>()(
           })),
         })),
     }),
-    { name: 'nannai-app-data-v2' },
+    { name: 'nannai-app-data-v4' },
   ),
 );

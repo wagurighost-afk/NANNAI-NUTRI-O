@@ -1,26 +1,56 @@
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import logo from '../assets/logo-nannai.png';
+import { BRAND } from '../data/mock';
+import { cn } from '../utils';
 
 export function AuthLayout() {
+  const { pathname } = useLocation();
+  const isLogin = pathname === '/login';
+
   return (
-    <div className="relative flex min-h-dvh flex-col items-center justify-center px-4 py-10">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -left-20 top-10 h-64 w-64 rounded-full bg-olive-200/40 blur-3xl" />
-        <div className="absolute -right-16 bottom-20 h-72 w-72 rounded-full bg-gold-200/35 blur-3xl" />
-        <div className="absolute left-1/3 top-1/2 h-40 w-40 rounded-full bg-olive-100/50 blur-3xl" />
+    <div className="flex min-h-dvh flex-col bg-cream-100">
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div className="absolute -left-24 top-0 h-80 w-80 rounded-full bg-olive-200/30 blur-3xl" />
+        <div className="absolute -right-20 bottom-24 h-96 w-96 rounded-full bg-gold-200/25 blur-3xl" />
       </div>
 
-      <div className="relative z-10 mb-8 flex flex-col items-center text-center">
-        <img
-          src={logo}
-          alt="NANNAI Nutrição — Alimentar bem, viver melhor"
-          className="h-36 w-auto max-w-[280px] object-contain drop-shadow-sm md:h-44"
-        />
+      <div
+        className={cn(
+          'relative z-10 flex flex-1',
+          isLogin ? 'items-stretch' : 'items-center justify-center px-4 py-10',
+        )}
+      >
+        {isLogin ? (
+          <Outlet />
+        ) : (
+          <div className="w-full max-w-md">
+            <div className="mb-8 flex justify-center">
+              <img
+                src={logo}
+                alt={BRAND.name}
+                className="h-32 w-auto max-w-[240px] object-contain"
+              />
+            </div>
+            <Outlet />
+          </div>
+        )}
       </div>
 
-      <div className="relative z-10 w-full max-w-md">
-        <Outlet />
-      </div>
+      <footer className="relative z-10 flex flex-col gap-2 bg-olive-700 px-5 py-3 text-cream-50 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <img
+            src={logo}
+            alt=""
+            className="h-9 w-9 rounded-full object-cover object-top brightness-110 contrast-110"
+          />
+          <p className="text-xs sm:text-sm">
+            {BRAND.name} — {BRAND.slogan}
+          </p>
+        </div>
+        <p className="text-xs uppercase tracking-wide text-cream-200 sm:text-sm">
+          {BRAND.initialUnit}
+        </p>
+      </footer>
     </div>
   );
 }

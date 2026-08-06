@@ -116,7 +116,7 @@ export const useAuthStore = create<AuthState>()(
       },
     }),
     {
-      name: 'nannai-auth-v2',
+      name: 'nannai-auth-v4',
       partialize: (s) => ({
         user: s.user,
         isAuthenticated: s.isAuthenticated,

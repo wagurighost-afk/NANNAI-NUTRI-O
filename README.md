@@ -7,7 +7,9 @@
 PWA de auditorias de segurança alimentar, higiene, estrutura, manipulação e boas práticas.
 
 **Slogan:** Alimentar bem, viver melhor  
-**Unidade inicial:** NANNAI Muro Alto
+
+O sistema inicia apenas com a administradora **Renata Fernanda**. Unidades, setores,
+usuários, destinatários e auditorias são cadastrados por ela.
 
 **Logo:** [`src/assets/logo-nannai.png`](src/assets/logo-nannai.png) · também em [`public/logo-nannai.png`](public/logo-nannai.png)
 ## Stack
@@ -27,8 +29,6 @@ PWA de auditorias de segurança alimentar, higiene, estrutura, manipulação e b
 npm install
 npm run dev
 ```
-
-Login demo: `roberto.silva@nannai.com.br` / `1234`
 
 ## Firebase
 
@@ -59,7 +59,7 @@ src/
 Após gerar o PDF de uma auditoria concluída, gestores/nutricionistas/admins podem
 usar **Enviar relatório por e-mail**.
 
-- Destinatários principais pré-cadastrados (Fernando, Ariela, Renata, Jhonny, Neto, David)
+- Destinatários cadastrados pela administradora em **Destinatários dos Relatórios**
 - CC / CCO, cópia para si, temporários e permanentes
 - Regras automáticas por unidade, setor, pontuação e NC crítica
 - Histórico com reenvio
@@ -79,12 +79,14 @@ VITE_EMAIL_API_URL=https://REGION-PROJECT.cloudfunctions.net/sendAuditReportEmai
 
 Stub: `functions/sendAuditReportEmail.js`
 
-## Administradores iniciais
+## Administradora inicial
 
 | Nome | E-mail | Cargo | Perfil |
 |------|--------|-------|--------|
-| Mauro José | mauro.jose@nannai.com.br | Administrador | `admin` |
-| Renata Fernanda | renata.fernanda@nannai.com.br | Nutricionista | `admin` + auditorias |
+| Renata Fernanda | renata.fernanda@nannai.com.br | Nutricionista | Administradora |
+
+Demais usuários são cadastrados pela administradora. Destinatários de relatórios
+existem apenas em **Destinatários dos Relatórios** e não são contas do sistema.
 
 Seed no Firebase Auth + Firestore:
 

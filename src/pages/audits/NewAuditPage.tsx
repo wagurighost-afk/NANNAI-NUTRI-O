@@ -66,6 +66,18 @@ export function NewAuditPage() {
         subtitle="Configure unidade, setor e questionário antes de iniciar"
       />
       <Card className="max-w-xl">
+        {units.length === 0 || sectors.filter((s) => s.active).length === 0 ? (
+          <div className="space-y-3">
+            <p className="text-sm text-ink-muted">
+              Para iniciar uma auditoria, cadastre primeiro pelo menos uma{' '}
+              <strong className="text-ink">unidade</strong> e um{' '}
+              <strong className="text-ink">setor</strong> em Unidades e setores.
+            </p>
+            <Link to="/app/unidades">
+              <Button>Ir para Unidades e setores</Button>
+            </Link>
+          </div>
+        ) : (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <Select
             label="Unidade"
@@ -103,6 +115,7 @@ export function NewAuditPage() {
             </Link>
           </div>
         </form>
+        )}
       </Card>
     </div>
   );

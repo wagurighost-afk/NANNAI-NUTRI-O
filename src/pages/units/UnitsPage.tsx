@@ -12,11 +12,13 @@ export function UnitsPage() {
   const sectors = useAppStore((s) => s.sectors);
   const users = useAppStore((s) => s.users);
   const addUnit = useAppStore((s) => s.addUnit);
+  const updateUnit = useAppStore((s) => s.updateUnit);
   const addSector = useAppStore((s) => s.addSector);
   const updateSector = useAppStore((s) => s.updateSector);
   const deleteSector = useAppStore((s) => s.deleteSector);
 
   const [unitModal, setUnitModal] = useState(false);
+  const [editingUnitId, setEditingUnitId] = useState<string | null>(null);
   const [sectorModal, setSectorModal] = useState(false);
   const [editingSector, setEditingSector] = useState<Sector | null>(null);
   const [unitForm, setUnitForm] = useState({ name: '', address: '', city: '' });
@@ -81,7 +83,7 @@ export function UnitsPage() {
     <div>
       <PageHeader
         title="Unidades e setores"
-        subtitle="Cadastre a estrutura operacional — unidades e setores usados nas auditorias"
+        subtitle="NANNAI Muro Alto e setores oficiais — edite, ative, desative ou exclua conforme necessário"
         actions={
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setUnitModal(true)}>
@@ -114,15 +116,41 @@ export function UnitsPage() {
                   {[unit.address, unit.city].filter(Boolean).join(' · ')}
                 </p>
               </div>
-              <Badge
-                className={
-                  unit.active
-                    ? 'border-olive-200 bg-olive-50 text-olive-800'
-                    : 'border-stone-200 bg-stone-100'
-                }
-              >
-                {unit.active ? 'Ativa' : 'Inativa'}
-              </Badge>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge
+                  className={
+                    unit.active
+                      ? 'border-olive-200 bg-olive-50 text-olive-800'
+                      : 'border-stone-200 bg-stone-100'
+                  }
+                >
+                  {unit.active ? 'Ativa' : 'Inativa'}
+                </Badge>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setEditingUnitId(unit.id);
+                    setUnitForm({
+                      name: unit.name,
+                      address: unit.address ?? '',
+                      city: unit.city ?? '',
+                    });
+                    setUnitModal(true);
+                  }}
+                >
+                  <Pencil size={14} />
+                  Editar unidade
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => updateUnit(unit.id, { active: !unit.active })}
+                >
+                  <Power size={14} />
+                  {unit.active ? 'Desativar' : 'Ativar'}
+                </Button>
+              </div>
             </div>
             <ul className="divide-y divide-cream-200">
               {sectors
@@ -193,7 +221,14 @@ export function UnitsPage() {
       </div>
       )}
 
-      <Modal open={unitModal} onClose={() => setUnitModal(false)} title="Nova unidade">
+      <Modal
+        open={unitModal}
+        onClose={() => {
+          setUnitModal(false);
+          setEditingUnitId(null);
+        }}
+        title={editingUnitId ? 'Editar unidade' : 'Nova unidade'}
+      >
         <div className="space-y-3">
           <Input
             label="Nome"
@@ -214,8 +249,13 @@ export function UnitsPage() {
             fullWidth
             onClick={() => {
               if (!unitForm.name) return;
-              addUnit({ ...unitForm, active: true });
+              if (editingUnitId) {
+                updateUnit(editingUnitId, { ...unitForm });
+              } else {
+                addUnit({ ...unitForm, active: true });
+              }
               setUnitModal(false);
+              setEditingUnitId(null);
               setUnitForm({ name: '', address: '', city: '' });
             }}
           >

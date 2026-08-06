@@ -1,12 +1,19 @@
 import type {
   ActionPlan,
+  AppSettings,
   Audit,
   Questionnaire,
   Sector,
   Unit,
   User,
 } from '../types';
-import { permissionsFor } from '../utils/permissions';
+import {
+  buildSeedAdmin,
+  buildSeedSectors,
+  buildSeedUnit,
+  nutrisanoQuestionnaire,
+  SEED_UNIT_ID,
+} from './seedConfig';
 
 export const BRAND = {
   name: 'NANNAI Nutrição',
@@ -14,287 +21,36 @@ export const BRAND = {
   initialUnit: 'NANNAI Muro Alto',
 } as const;
 
-/** Única conta inicial — demais dados são cadastrados pela administradora */
-export const mockUsers: User[] = [
-  {
-    id: 'uid-renata-fernanda',
-    uid: 'uid-renata-fernanda',
-    name: 'Renata Fernanda',
-    email: 'renata.fernanda@nannai.com.br',
-    role: 'admin',
-    professionalRole: 'Nutricionista',
-    permissions: permissionsFor('admin', 'Nutricionista'),
-    unitIds: [],
-    sectorIds: [],
-    active: true,
-    isActive: true,
-    createdAt: '2026-01-01T10:00:00Z',
-    updatedAt: '2026-01-01T10:00:00Z',
+export const defaultAppSettings: AppSettings = {
+  autoSaveIntervalMs: 10000,
+  requirePhotoOnNonConformity: true,
+  defaultUnitId: SEED_UNIT_ID,
+  companyName: BRAND.name,
+  slogan: BRAND.slogan,
+  theme: 'light',
+  brandColors: {
+    olive: '#6b7f3a',
+    gold: '#b8954a',
+    wine: '#5c2e35',
+    cream: '#f7f1e8',
   },
-];
+  pwa: {
+    offlineEnabled: true,
+    autoSyncOnReconnect: true,
+    installPromptEnabled: true,
+  },
+};
 
-/** Unidades, setores, auditorias e planos começam vazios */
-export const mockUnits: Unit[] = [];
-export const mockSectors: Sector[] = [];
+/** Conta administrativa inicial — única usuário criada automaticamente */
+export const mockUsers: User[] = [buildSeedAdmin(SEED_UNIT_ID)];
+
+/** Unidade e setores oficiais (também garantidos pelo seed idempotente) */
+export const mockUnits: Unit[] = [buildSeedUnit()];
+export const mockSectors: Sector[] = buildSeedSectors(SEED_UNIT_ID);
+
+/** Sem auditorias nem planos fictícios — sistema inicia limpo */
 export const mockAudits: Audit[] = [];
 export const mockActionPlans: ActionPlan[] = [];
 
-/**
- * Questionário-base editável (pesos/ativação).
- * Conteúdo operacional de BPF — sem registros fictícios de auditoria.
- */
-export const mockQuestionnaire: Questionnaire = {
-  id: 'q1',
-  name: 'Checklist de Boas Práticas — Segurança Alimentar',
-  description:
-    'Avaliação de higiene, estrutura, manipulação e boas práticas de fabricação.',
-  version: '2.1',
-  active: true,
-  updatedAt: '2026-01-01T12:00:00Z',
-  sections: [
-    {
-      id: 'sec1',
-      questionnaireId: 'q1',
-      name: 'Estrutura e Instalações',
-      description: 'Condições físicas e infraestrutura do setor',
-      order: 1,
-      questions: [
-        {
-          id: 'q1-1',
-          sectionId: 'sec1',
-          order: 1,
-          text: 'Pisos, paredes e tetos estão íntegros, limpos e em bom estado de conservação?',
-          guidance: 'Verificar rachaduras, mofo, umidade e acúmulo de sujidade.',
-          weight: 2,
-          maxScore: 10,
-          requiresPhoto: false,
-          critical: false,
-          active: true,
-        },
-        {
-          id: 'q1-2',
-          sectionId: 'sec1',
-          order: 2,
-          text: 'Iluminação e ventilação são adequadas à operação?',
-          weight: 1,
-          maxScore: 10,
-          requiresPhoto: false,
-          critical: false,
-          active: true,
-        },
-        {
-          id: 'q1-3',
-          sectionId: 'sec1',
-          order: 3,
-          text: 'Áreas de manipulação estão livres de pragas e pontos de entrada protegidos?',
-          weight: 3,
-          maxScore: 10,
-          requiresPhoto: true,
-          critical: true,
-          active: true,
-        },
-        {
-          id: 'q1-4',
-          sectionId: 'sec1',
-          order: 4,
-          text: 'Lavatórios exclusivos para higiene das mãos estão disponíveis e abastecidos?',
-          weight: 2,
-          maxScore: 10,
-          requiresPhoto: false,
-          critical: true,
-          active: true,
-        },
-      ],
-    },
-    {
-      id: 'sec2',
-      questionnaireId: 'q1',
-      name: 'Higiene Pessoal e Uniformes',
-      description: 'Condutas e apresentação dos manipuladores',
-      order: 2,
-      questions: [
-        {
-          id: 'q2-1',
-          sectionId: 'sec2',
-          order: 1,
-          text: 'Manipuladores utilizam uniforme limpo, completo e adequado?',
-          weight: 2,
-          maxScore: 10,
-          requiresPhoto: false,
-          critical: false,
-          active: true,
-        },
-        {
-          id: 'q2-2',
-          sectionId: 'sec2',
-          order: 2,
-          text: 'Cabelos estão totalmente protegidos e unhas curtas, limpas e sem esmalte?',
-          weight: 2,
-          maxScore: 10,
-          requiresPhoto: false,
-          critical: false,
-          active: true,
-        },
-        {
-          id: 'q2-3',
-          sectionId: 'sec2',
-          order: 3,
-          text: 'Há ausência de adornos durante a manipulação?',
-          weight: 2,
-          maxScore: 10,
-          requiresPhoto: false,
-          critical: true,
-          active: true,
-        },
-        {
-          id: 'q2-4',
-          sectionId: 'sec2',
-          order: 4,
-          text: 'Higienização das mãos é realizada corretamente e nos momentos necessários?',
-          weight: 3,
-          maxScore: 10,
-          requiresPhoto: false,
-          critical: true,
-          active: true,
-        },
-      ],
-    },
-    {
-      id: 'sec3',
-      questionnaireId: 'q1',
-      name: 'Manipulação e Preparo',
-      description: 'Boas práticas no preparo e conservação',
-      order: 3,
-      questions: [
-        {
-          id: 'q3-1',
-          sectionId: 'sec3',
-          order: 1,
-          text: 'Alimentos perecíveis estão sob controle de temperatura adequado?',
-          weight: 3,
-          maxScore: 10,
-          requiresPhoto: true,
-          critical: true,
-          active: true,
-        },
-        {
-          id: 'q3-2',
-          sectionId: 'sec3',
-          order: 2,
-          text: 'Há prevenção de contaminação cruzada entre alimentos crus e prontos?',
-          weight: 3,
-          maxScore: 10,
-          requiresPhoto: false,
-          critical: true,
-          active: true,
-        },
-        {
-          id: 'q3-3',
-          sectionId: 'sec3',
-          order: 3,
-          text: 'Utensílios e equipamentos estão limpos, íntegros e em uso correto?',
-          weight: 2,
-          maxScore: 10,
-          requiresPhoto: false,
-          critical: false,
-          active: true,
-        },
-        {
-          id: 'q3-4',
-          sectionId: 'sec3',
-          order: 4,
-          text: 'Registros de tempo e temperatura estão preenchidos e atualizados?',
-          weight: 2,
-          maxScore: 10,
-          requiresPhoto: false,
-          critical: true,
-          active: true,
-        },
-      ],
-    },
-    {
-      id: 'sec4',
-      questionnaireId: 'q1',
-      name: 'Armazenamento e Estoque',
-      description: 'Organização e conservação de insumos',
-      order: 4,
-      questions: [
-        {
-          id: 'q4-1',
-          sectionId: 'sec4',
-          order: 1,
-          text: 'Alimentos estão identificados, datados e organizados (PEPS)?',
-          weight: 2,
-          maxScore: 10,
-          requiresPhoto: false,
-          critical: false,
-          active: true,
-        },
-        {
-          id: 'q4-2',
-          sectionId: 'sec4',
-          order: 2,
-          text: 'Câmaras e refrigeradores mantêm temperatura adequada e registrada?',
-          weight: 3,
-          maxScore: 10,
-          requiresPhoto: true,
-          critical: true,
-          active: true,
-        },
-        {
-          id: 'q4-3',
-          sectionId: 'sec4',
-          order: 3,
-          text: 'Produtos químicos estão separados dos alimentos e identificados?',
-          weight: 2,
-          maxScore: 10,
-          requiresPhoto: false,
-          critical: true,
-          active: true,
-        },
-      ],
-    },
-    {
-      id: 'sec5',
-      questionnaireId: 'q1',
-      name: 'Higiene e Sanitização',
-      description: 'Limpeza, sanitização e resíduos',
-      order: 5,
-      questions: [
-        {
-          id: 'q5-1',
-          sectionId: 'sec5',
-          order: 1,
-          text: 'Frequência e registros de limpeza estão em conformidade?',
-          weight: 2,
-          maxScore: 10,
-          requiresPhoto: false,
-          critical: false,
-          active: true,
-        },
-        {
-          id: 'q5-2',
-          sectionId: 'sec5',
-          order: 2,
-          text: 'Diluição e uso de sanitizantes seguem o procedimento?',
-          weight: 2,
-          maxScore: 10,
-          requiresPhoto: false,
-          critical: true,
-          active: true,
-        },
-        {
-          id: 'q5-3',
-          sectionId: 'sec5',
-          order: 3,
-          text: 'Resíduos são acondicionados e removidos adequadamente?',
-          weight: 2,
-          maxScore: 10,
-          requiresPhoto: false,
-          critical: false,
-          active: true,
-        },
-      ],
-    },
-  ],
-};
+/** Questionário oficial Nutrisano */
+export const mockQuestionnaire: Questionnaire = nutrisanoQuestionnaire;

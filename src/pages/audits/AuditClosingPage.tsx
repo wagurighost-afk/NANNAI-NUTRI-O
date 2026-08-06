@@ -85,7 +85,7 @@ export function AuditClosingPage() {
     const latest = useAppStore.getState().audits.find((a) => a.id === audit.id);
     if (latest) await saveAuditOffline(latest);
     setSaving(false);
-    navigate(`/app/auditorias/${audit.id}`);
+    navigate(`/app/auditorias/${audit.id}?finalizada=1`);
   };
 
   return (

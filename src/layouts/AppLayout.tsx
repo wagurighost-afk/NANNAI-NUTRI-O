@@ -4,7 +4,6 @@ import {
   ClipboardCheck,
   ClipboardList,
   ListChecks,
-  BarChart3,
   LineChart,
   Users,
   Building2,
@@ -24,9 +23,11 @@ import { useState } from 'react';
 import logo from '../assets/logo-nannai.png';
 import { BRAND } from '../data/mock';
 import { useAuthStore } from '../stores/authStore';
+import { useAppStore } from '../stores/appStore';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { roleLabels, cn } from '../utils';
 import { Button } from '../components/ui/Button';
+import { NotificationBell } from '../components/notifications/NotificationBell';
 
 import type { UserRole } from '../types';
 
@@ -65,12 +66,20 @@ export function AppLayout() {
   const [open, setOpen] = useState(false);
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+  const units = useAppStore((s) => s.units);
+  const settings = useAppStore((s) => s.settings);
   const navigate = useNavigate();
   const { online, syncing, pendingSyncCount, emailFlushMessage } = useOnlineStatus();
 
   const visible = navItems.filter(
     (item) => !item.roles || (user && item.roles.includes(user.role)),
   );
+
+  const unitLabel =
+    units.find((u) => u.id === settings.defaultUnitId)?.name ??
+    units[0]?.name ??
+    BRAND.initialUnit;
+  const logoSrc = settings.logoDataUrl || logo;
 
   return (
     <div className="flex min-h-dvh">
@@ -82,7 +91,7 @@ export function AppLayout() {
       >
         <div className="flex items-center gap-3 border-b border-cream-200 px-4 py-3">
           <img
-            src={logo}
+            src={logoSrc}
             alt="NANNAI Nutrição"
             className="h-14 w-auto max-w-[200px] object-contain object-left"
           />
@@ -158,9 +167,7 @@ export function AppLayout() {
             <Menu size={18} />
           </button>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-ink">
-              {BRAND.initialUnit}
-            </p>
+            <p className="truncate text-sm font-medium text-ink">{unitLabel}</p>
           </div>
           <div className="flex items-center gap-2">
             {!online ? (
@@ -177,7 +184,7 @@ export function AppLayout() {
                 <Wifi size={14} /> Online
               </span>
             )}
-            <BarChart3 className="hidden text-olive-500 sm:block" size={18} />
+            <NotificationBell />
           </div>
         </header>
 

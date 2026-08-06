@@ -25,7 +25,7 @@ import type { ConformityStatus, Priority } from '../../types';
 import { saveAuditOffline } from '../../services/offlineDb';
 import { useAutoSave } from '../../hooks/useOnlineStatus';
 
-const statusOptions: ConformityStatus[] = [
+const baseStatusOptions: ConformityStatus[] = [
   'nao_conforme',
   'parcialmente_conforme',
   'conforme',
@@ -222,27 +222,46 @@ export function AuditExecutionPage() {
         )}
 
         <div className="mt-5 grid grid-cols-2 gap-2">
-          {statusOptions.map((status) => (
-            <button
-              key={status}
-              type="button"
-              onClick={() => setStatus(status)}
-              className={cn(
-                'rounded-xl border px-3 py-3 text-left text-sm font-medium transition active:scale-[0.98]',
-                answer.status === status
-                  ? status === 'conforme'
-                    ? 'border-olive-500 bg-olive-100 text-olive-900'
-                    : status === 'parcialmente_conforme'
-                      ? 'border-gold-500 bg-gold-100 text-gold-900'
-                      : status === 'nao_conforme'
-                        ? 'border-wine-600 bg-wine-100 text-wine-900'
-                        : 'border-stone-400 bg-stone-100 text-stone-700'
-                  : 'border-cream-300 bg-white hover:border-olive-300',
-              )}
-            >
-              {conformityLabels[status]}
-            </button>
-          ))}
+          {baseStatusOptions
+            .filter(
+              (status) =>
+                status !== 'parcialmente_conforme' ||
+                question.allowsPartial !== false,
+            )
+            .map((status) => {
+              const points =
+                status === 'conforme'
+                  ? question.maxScore
+                  : status === 'parcialmente_conforme'
+                    ? (question.partialScore ?? Math.round(question.maxScore / 2))
+                    : 0;
+              return (
+                <button
+                  key={status}
+                  type="button"
+                  onClick={() => setStatus(status)}
+                  className={cn(
+                    'rounded-xl border px-3 py-3 text-left text-sm font-medium transition active:scale-[0.98]',
+                    answer.status === status
+                      ? status === 'conforme'
+                        ? 'border-olive-500 bg-olive-100 text-olive-900'
+                        : status === 'parcialmente_conforme'
+                          ? 'border-gold-500 bg-gold-100 text-gold-900'
+                          : status === 'nao_conforme'
+                            ? 'border-wine-600 bg-wine-100 text-wine-900'
+                            : 'border-stone-400 bg-stone-100 text-stone-700'
+                      : 'border-cream-300 bg-white hover:border-olive-300',
+                  )}
+                >
+                  <span className="block">{conformityLabels[status]}</span>
+                  {status !== 'nao_se_aplica' && (
+                    <span className="mt-0.5 block text-xs font-normal opacity-80">
+                      {points} pontos
+                    </span>
+                  )}
+                </button>
+              );
+            })}
         </div>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -253,8 +272,8 @@ export function AuditExecutionPage() {
             </strong>
           </div>
           <div className="rounded-xl border border-cream-200 bg-cream-50 px-3 py-2 text-sm">
-            <span className="text-ink-muted">Peso: </span>
-            <strong>{question.weight}</strong>
+            <span className="text-ink-muted">Nota máxima da pergunta: </span>
+            <strong>{question.maxScore}</strong>
           </div>
         </div>
 

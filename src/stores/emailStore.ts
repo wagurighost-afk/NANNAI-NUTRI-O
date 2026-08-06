@@ -18,6 +18,8 @@ interface EmailState {
   groups: RecipientGroup[];
   rules: AutoRecipientRule[];
   history: EmailSendRecord[];
+  initialSeedCompleted: boolean;
+  seedVersion: number;
   addRecipient: (
     data: Omit<ReportRecipient, 'id' | 'createdAt' | 'updatedAt'>,
   ) => ReportRecipient;
@@ -40,6 +42,8 @@ export const useEmailStore = create<EmailState>()(
       groups: mockRecipientGroups,
       rules: mockAutoRecipientRules,
       history: mockEmailHistory,
+      initialSeedCompleted: false,
+      seedVersion: 0,
 
       addRecipient: (data) => {
         const now = new Date().toISOString();
@@ -125,6 +129,6 @@ export const useEmailStore = create<EmailState>()(
           ),
         })),
     }),
-    { name: 'nannai-email-data-v3' },
+    { name: 'nannai-email-data-v5' },
   ),
 );

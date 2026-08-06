@@ -9,6 +9,7 @@ import {
   sendPasswordReset,
 } from '../services/firebaseService';
 import { isUserActive } from '../utils/permissions';
+import { useAppStore } from './appStore';
 
 interface AuthState {
   user: User | null;
@@ -63,9 +64,14 @@ export const useAuthStore = create<AuthState>()(
         }
 
         await new Promise((r) => setTimeout(r, 500));
-        const found = mockUsers.find(
-          (u) => u.email.toLowerCase() === email.toLowerCase(),
-        );
+        const localUsers = useAppStore.getState().users;
+        const found =
+          localUsers.find(
+            (u) => u.email.toLowerCase() === email.toLowerCase(),
+          ) ??
+          mockUsers.find(
+            (u) => u.email.toLowerCase() === email.toLowerCase(),
+          );
         if (!found) {
           return { ok: false, error: 'Usuário não encontrado.' };
         }
@@ -116,7 +122,7 @@ export const useAuthStore = create<AuthState>()(
       },
     }),
     {
-      name: 'nannai-auth-v4',
+      name: 'nannai-auth-v5',
       partialize: (s) => ({
         user: s.user,
         isAuthenticated: s.isAuthenticated,

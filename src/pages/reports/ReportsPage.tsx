@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { FileDown, Mail } from 'lucide-react';
-import { PageHeader, Card, Badge } from '../../components/ui/Card';
+import { FileDown, Mail, Printer, Share2 } from 'lucide-react';
+import { PageHeader, Card, Badge, EmptyState } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { useAppStore } from '../../stores/appStore';
 import { useAuthStore } from '../../stores/authStore';
@@ -21,12 +21,21 @@ export function ReportsPage() {
   const [sendAudit, setSendAudit] = useState<Audit | null>(null);
   const canEmail = canSendReportEmail(user?.role);
 
+  const plansFor = (auditId: string) =>
+    actionPlans.filter((p) => p.auditId === auditId);
+
   return (
     <div>
       <PageHeader
         title="Relatórios"
-        subtitle="Gere PDF e envie por e-mail com logo NANNAI, pontuação e planos de ação"
+        subtitle="PDF, impressão, compartilhamento e envio por e-mail"
       />
+      {audits.length === 0 ? (
+        <EmptyState
+          title="Nenhum relatório ainda"
+          description="Finalize uma auditoria para gerar PDF e enviar aos destinatários."
+        />
+      ) : null}
       <div className="space-y-3">
         {audits.map((audit) => (
           <Card
@@ -50,14 +59,46 @@ export function ReportsPage() {
                 size="sm"
                 variant="secondary"
                 onClick={() =>
-                  generateAuditPdf(
-                    audit,
-                    questionnaire,
-                    actionPlans.filter((p) => p.auditId === audit.id),
-                  )
+                  generateAuditPdf(audit, questionnaire, plansFor(audit.id))
                 }
               >
-                <FileDown size={16} /> Gerar PDF
+                <FileDown size={16} /> PDF
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={async () => {
+                  await generateAuditPdf(audit, questionnaire, plansFor(audit.id));
+                  window.print();
+                }}
+              >
+                <Printer size={16} /> Imprimir
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={async () => {
+                  const attachment = await generateAuditPdfAttachment(
+                    audit,
+                    questionnaire,
+                    plansFor(audit.id),
+                  );
+                  if (attachment.blob) {
+                    const file = new File([attachment.blob], attachment.fileName, {
+                      type: 'application/pdf',
+                    });
+                    if (navigator.share && navigator.canShare?.({ files: [file] })) {
+                      await navigator.share({
+                        title: `Relatório ${audit.code}`,
+                        files: [file],
+                      });
+                      return;
+                    }
+                  }
+                  await generateAuditPdf(audit, questionnaire, plansFor(audit.id));
+                }}
+              >
+                <Share2 size={16} /> Compartilhar
               </Button>
               {canEmail && (
                 <Button
@@ -66,12 +107,12 @@ export function ReportsPage() {
                     await generateAuditPdfAttachment(
                       audit,
                       questionnaire,
-                      actionPlans.filter((p) => p.auditId === audit.id),
+                      plansFor(audit.id),
                     );
                     setSendAudit(audit);
                   }}
                 >
-                  <Mail size={16} /> Enviar relatório por e-mail
+                  <Mail size={16} /> Enviar por e-mail
                 </Button>
               )}
             </div>

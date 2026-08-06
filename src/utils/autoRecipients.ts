@@ -51,7 +51,14 @@ export function resolveAutoRecipients(params: {
     }
   };
 
-  // Primary recipients always start selected
+  // Destinatários ativos da unidade (ou todos ativos) começam selecionados
+  for (const r of recipients.filter((x) => x.active)) {
+    const matchesUnit =
+      r.unitIds.length === 0 || r.unitIds.includes(audit.unitId);
+    if (matchesUnit) selected.add(r.id);
+  }
+
+  // Principais sempre entram, mesmo sem vínculo de unidade
   for (const r of recipients.filter((x) => x.active && x.isPrimary)) {
     selected.add(r.id);
   }

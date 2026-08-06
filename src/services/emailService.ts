@@ -121,16 +121,13 @@ export async function sendReportViaBackend(
   };
 
   if (!apiUrl) {
-    // Dev/mock: simulate secure backend without exposing credentials
-    await new Promise((r) => setTimeout(r, 900));
-    console.info(
-      '[NANNAI Email] Modo simulado — configure VITE_EMAIL_API_URL para envio real via Cloud Function.',
-    );
     return {
-      status: 'enviado',
-      message: 'Relatório enviado com sucesso (modo simulado).',
-      providerMessageId: `mock-${Date.now()}`,
-      errors: [],
+      status: 'falha',
+      message:
+        'Envio pelo servidor não configurado. Use “Abrir no e-mail” ou “Compartilhar PDF”.',
+      errors: [
+        'Configure VITE_EMAIL_API_URL para envio automático pelo servidor NANNAI.',
+      ],
     };
   }
 

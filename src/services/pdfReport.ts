@@ -92,8 +92,9 @@ export async function buildAuditPdfDoc(
     for (const q of section.questions) {
       const a = audit.answers[q.id];
       if (!a?.status || a.status === 'nao_se_aplica') continue;
-      secScore += a.score * a.weight;
-      secMax += 10 * a.weight;
+      const qMax = a.maxScore > 0 ? a.maxScore : q.maxScore;
+      secScore += a.score;
+      secMax += qMax;
     }
     const pct = secMax > 0 ? Math.round((secScore / secMax) * 1000) / 10 : 0;
     sectionRows.push([section.name, Math.round(secScore), Math.round(secMax), `${pct}%`]);

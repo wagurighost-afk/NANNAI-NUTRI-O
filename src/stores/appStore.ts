@@ -386,3 +386,9 @@ export const useAppStore = create<AppState>()(
     { name: 'nannai-app-data-v5' },
   ),
 );
+
+// Expose store for testing
+if (typeof window !== 'undefined') {
+  (window as any).__appStore = useAppStore;
+}
+

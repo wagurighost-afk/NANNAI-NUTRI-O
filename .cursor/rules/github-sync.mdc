@@ -1,0 +1,14 @@
+---
+description: Commit and push project changes to GitHub without waiting for a separate ask
+alwaysApply: true
+---
+
+# GitHub sync
+
+Whenever project work produces meaningful file changes (features, fixes, content, docs, or cleanup the user requested), **commit and push to `origin`** as part of finishing the task.
+
+- Do not wait for a separate "pode fazer commit/push" message — this permission is standing.
+- Follow the normal git safety protocol (no force push to main/master, no config changes, no secrets).
+- Use clear commit messages focused on why.
+- After push, briefly confirm with the repo URL when relevant.
+- Skip only trivial or incomplete WIP if the user is mid-instruction and more steps are clearly coming in the same turn; otherwise sync when the requested work is done.

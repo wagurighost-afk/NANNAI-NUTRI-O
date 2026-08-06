@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { PageHeader, Card, StatCard } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -12,8 +12,11 @@ export function AuditClosingPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const audit = useAppStore((s) => s.audits.find((a) => a.id === id));
-  const actionPlans = useAppStore((s) =>
-    s.actionPlans.filter((p) => p.auditId === id),
+  const questionnaire = useAppStore((s) => s.questionnaire);
+  const allPlans = useAppStore((s) => s.actionPlans);
+  const actionPlans = useMemo(
+    () => allPlans.filter((p) => p.auditId === id),
+    [allPlans, id],
   );
   const completeAudit = useAppStore((s) => s.completeAudit);
 
@@ -27,7 +30,7 @@ export function AuditClosingPage() {
 
   if (!audit) return <Card>Auditoria não encontrada.</Card>;
 
-  const totals = computeAuditTotals(audit.answers);
+  const totals = computeAuditTotals(audit.answers, questionnaire);
 
   const startDraw = (
     e: React.PointerEvent<HTMLCanvasElement>,

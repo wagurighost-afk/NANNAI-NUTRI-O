@@ -181,7 +181,7 @@ export const useAppStore = create<AppState>()(
               answeredAt: patch.status ? new Date().toISOString() : prev.answeredAt,
             };
             const answers = { ...a.answers, [questionId]: next };
-            const totals = computeAuditTotals(answers);
+            const totals = computeAuditTotals(answers, s.questionnaire);
             return {
               ...a,
               answers,

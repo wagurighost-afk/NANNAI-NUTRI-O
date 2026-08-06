@@ -66,7 +66,7 @@ export async function buildAuditPdfDoc(
     y += 6;
   }
 
-  const totals = computeAuditTotals(audit.answers);
+  const totals = computeAuditTotals(audit.answers, questionnaire);
   y += 4;
   doc.setFont('helvetica', 'bold');
   doc.text('Resumo da pontuação', 14, y);

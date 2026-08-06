@@ -68,8 +68,8 @@ export function AuditExecutionPage() {
   const answer = audit && question ? audit.answers[question.id] : undefined;
 
   const totals = useMemo(
-    () => (audit ? computeAuditTotals(audit.answers) : null),
-    [audit],
+    () => (audit ? computeAuditTotals(audit.answers, questionnaire) : null),
+    [audit, questionnaire],
   );
 
   const flatIndex = useMemo(() => {
@@ -173,10 +173,19 @@ export function AuditExecutionPage() {
         title={audit.code}
         subtitle={`${audit.sectorName} · ${audit.unitName}`}
         actions={
-          <Button variant="outline" size="sm" onClick={persist}>
-            <Save size={16} />
-            {savedFlash ? 'Salvo!' : 'Salvar e continuar depois'}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={persist}>
+              <Save size={16} />
+              {savedFlash ? 'Salvo!' : 'Salvar e continuar depois'}
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => navigate(`/app/auditorias/${audit.id}/resumo`)}
+            >
+              Ver resumo
+            </Button>
+          </div>
         }
       />
 

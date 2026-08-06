@@ -36,7 +36,7 @@ export function resolveAutoRecipients(params: {
   const selected = new Set<string>();
   const matchedRuleNames: string[] = [];
   const critical = hasCriticalNonConformity(audit, questionnaire);
-  const totals = computeAuditTotals(audit.answers);
+  const totals = computeAuditTotals(audit.answers, questionnaire);
   const relatedPlans = actionPlans.filter((p) => p.auditId === audit.id);
   const hasHighSeverity = relatedPlans.some(
     (p) => p.priority === 'alta' || p.priority === 'critica',

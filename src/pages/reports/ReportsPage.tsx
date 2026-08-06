@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { FileDown, Mail, Printer, Share2 } from 'lucide-react';
 import { PageHeader, Card, Badge, EmptyState } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -14,7 +14,11 @@ import { canSendReportEmail } from '../../utils/email';
 import type { Audit } from '../../types';
 
 export function ReportsPage() {
-  const audits = useAppStore((s) => s.audits.filter((a) => a.status === 'concluida'));
+  const allAudits = useAppStore((s) => s.audits);
+  const audits = useMemo(
+    () => allAudits.filter((a) => a.status === 'concluida'),
+    [allAudits],
+  );
   const questionnaire = useAppStore((s) => s.questionnaire);
   const actionPlans = useAppStore((s) => s.actionPlans);
   const user = useAuthStore((s) => s.user);

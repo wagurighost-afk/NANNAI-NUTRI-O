@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { FileDown, Mail, Printer, Share2 } from 'lucide-react';
 import { PageHeader, Card, Badge, StatCard } from '../../components/ui/Card';
@@ -26,8 +26,10 @@ export function AuditDetailPage() {
   const [searchParams] = useSearchParams();
   const audit = useAppStore((s) => s.audits.find((a) => a.id === id));
   const questionnaire = useAppStore((s) => s.questionnaire);
-  const actionPlans = useAppStore((s) =>
-    s.actionPlans.filter((p) => p.auditId === id),
+  const allPlans = useAppStore((s) => s.actionPlans);
+  const actionPlans = useMemo(
+    () => allPlans.filter((p) => p.auditId === id),
+    [allPlans, id],
   );
   const user = useAuthStore((s) => s.user);
   const [sendOpen, setSendOpen] = useState(searchParams.get('enviar') === '1');
@@ -39,7 +41,7 @@ export function AuditDetailPage() {
 
   if (!audit) return <Card>Auditoria não encontrada.</Card>;
 
-  const totals = computeAuditTotals(audit.answers);
+  const totals = computeAuditTotals(audit.answers, questionnaire);
   const canEmail = canSendReportEmail(user?.role) && audit.status === 'concluida';
 
   const handleGeneratePdf = async () => {

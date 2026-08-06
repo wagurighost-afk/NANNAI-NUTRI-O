@@ -82,7 +82,21 @@ export function scoreForStatus(
   }
 }
 
-export function computeAuditTotals(answers: Record<string, AuditAnswer>) {
+export function computeAuditTotals(
+  answers: Record<string, AuditAnswer>,
+  questionnaire?: {
+    sections: { questions: { id: string; maxScore: number }[] }[];
+  },
+) {
+  const maxByQuestion = new Map<string, number>();
+  if (questionnaire) {
+    for (const section of questionnaire.sections) {
+      for (const q of section.questions) {
+        maxByQuestion.set(q.id, q.maxScore);
+      }
+    }
+  }
+
   const list = Object.values(answers);
   const applicable = list.filter((a) => a.status && a.status !== 'nao_se_aplica');
   const answered = list.filter((a) => a.status !== null);
@@ -96,8 +110,11 @@ export function computeAuditTotals(answers: Record<string, AuditAnswer>) {
   let score = 0;
   let maxScore = 0;
   for (const a of applicable) {
-    // Pontuação absoluta Nutrisano (maxScore da pergunta); weight legado = 1
-    const questionMax = a.maxScore > 0 ? a.maxScore : 10 * (a.weight || 1);
+    // Pontuação absoluta Nutrisano; fallback para questionário ou peso legado
+    const questionMax =
+      a.maxScore > 0
+        ? a.maxScore
+        : (maxByQuestion.get(a.questionId) ?? 10 * (a.weight || 1));
     score += a.score;
     maxScore += questionMax;
   }

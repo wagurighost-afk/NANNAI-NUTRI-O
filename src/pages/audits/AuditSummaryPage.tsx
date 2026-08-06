@@ -1,15 +1,22 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, FileDown, Mail } from 'lucide-react';
 import { PageHeader, Card, Badge, StatCard } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { useAppStore } from '../../stores/appStore';
+import { useAuthStore } from '../../stores/authStore';
 import {
   computeAuditTotals,
   conformityColors,
   conformityLabels,
   cn,
 } from '../../utils';
+import { canSendReportEmail } from '../../utils/email';
+import {
+  generateAuditPdf,
+  generateAuditPdfAttachment,
+} from '../../services/pdfReport';
+import { SendReportModal } from '../../components/email/SendReportModal';
 
 export function AuditSummaryPage() {
   const { id } = useParams();
@@ -17,10 +24,14 @@ export function AuditSummaryPage() {
   const audit = useAppStore((s) => s.audits.find((a) => a.id === id));
   const questionnaire = useAppStore((s) => s.questionnaire);
   const allPlans = useAppStore((s) => s.actionPlans);
+  const user = useAuthStore((s) => s.user);
   const actionPlans = useMemo(
     () => allPlans.filter((p) => p.auditId === id),
     [allPlans, id],
   );
+  const [sendOpen, setSendOpen] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const canEmail = canSendReportEmail(user?.role);
 
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
   const [filter, setFilter] = useState<'todas' | 'pendentes' | 'nc'>('todas');
@@ -89,11 +100,52 @@ export function AuditSummaryPage() {
         title="Resumo da auditoria"
         subtitle={audit.code}
         actions={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={pdfBusy}
+              onClick={async () => {
+                setPdfBusy(true);
+                try {
+                  await generateAuditPdf(audit, questionnaire, actionPlans);
+                } finally {
+                  setPdfBusy(false);
+                }
+              }}
+            >
+              <FileDown size={16} />
+              {pdfBusy ? 'Gerando…' : 'Baixar PDF'}
+            </Button>
+            {canEmail && (
+              <Button
+                size="sm"
+                disabled={pdfBusy}
+                onClick={async () => {
+                  setPdfBusy(true);
+                  try {
+                    await generateAuditPdfAttachment(
+                      audit,
+                      questionnaire,
+                      actionPlans,
+                    );
+                    setSendOpen(true);
+                  } finally {
+                    setPdfBusy(false);
+                  }
+                }}
+              >
+                <Mail size={16} />
+                Enviar relatório em PDF
+              </Button>
+            )}
             <Link to={`/app/auditorias/${audit.id}/executar`}>
-              <Button variant="outline">Continuar respondendo</Button>
+              <Button variant="outline" size="sm">
+                Continuar respondendo
+              </Button>
             </Link>
             <Button
+              size="sm"
               onClick={() => navigate(`/app/auditorias/${audit.id}/encerrar`)}
               disabled={totals.pending > 0}
             >
@@ -255,6 +307,15 @@ export function AuditSummaryPage() {
             },
           )}
       </div>
+
+      <SendReportModal
+        open={sendOpen}
+        onClose={() => setSendOpen(false)}
+        audit={audit}
+        questionnaire={questionnaire}
+        actionPlans={actionPlans}
+        user={user}
+      />
     </div>
   );
 }

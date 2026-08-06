@@ -4,6 +4,7 @@ import {
   CheckSquare,
   Copy,
   ExternalLink,
+  FileDown,
   Mail,
   Paperclip,
   Plus,
@@ -413,7 +414,7 @@ export function SendReportModal({
   const selectedCount = selectedIds.size + tempList.length;
 
   return (
-    <Modal open={open} onClose={onClose} title="Enviar relatório / resultado">
+    <Modal open={open} onClose={onClose} title="Enviar relatório em PDF">
       {!allowed ? (
         <p className="rounded-xl bg-wine-50 px-3 py-2 text-sm text-wine-700">
           Apenas nutricionista, gestor ou administrador podem enviar
@@ -421,13 +422,19 @@ export function SendReportModal({
         </p>
       ) : (
         <div className="space-y-4">
+          <div className="rounded-xl border border-olive-200 bg-olive-50 px-3 py-2 text-sm text-olive-900">
+            O relatório será enviado em <strong>formato PDF</strong>, com
+            pontuação, respostas e planos de ação da auditoria{' '}
+            <strong>{audit.code}</strong>.
+          </div>
+
           {auto.criticalAlert && (
             <div className="flex gap-2 rounded-xl border border-wine-300 bg-wine-50 px-3 py-2 text-sm text-wine-800">
               <AlertTriangle className="mt-0.5 shrink-0" size={18} />
               <div>
                 <p className="font-medium">Não conformidade crítica detectada</p>
                 <p className="text-xs">
-                  Revise os destinatários antes de enviar o resultado.
+                  Revise os destinatários antes de enviar o PDF.
                 </p>
               </div>
             </div>
@@ -435,8 +442,8 @@ export function SendReportModal({
 
           {!serverEmailReady && (
             <p className="rounded-xl border border-gold-200 bg-gold-50 px-3 py-2 text-sm text-gold-900">
-              Para enviar agora, use <strong>Abrir no e-mail</strong> (baixa o PDF
-              e abre Outlook/Gmail com todos os destinatários) ou{' '}
+              Use <strong>Enviar PDF por e-mail</strong> (baixa o arquivo e abre
+              Outlook/Gmail com os destinatários) ou{' '}
               <strong>Compartilhar PDF</strong>.
             </p>
           )}
@@ -605,13 +612,26 @@ export function SendReportModal({
             Incluir cópia para mim ({user?.email})
           </label>
 
-          <div className="flex items-center gap-2 rounded-xl border border-olive-200 bg-olive-50 px-3 py-2 text-sm text-olive-900">
-            <Paperclip size={16} />
-            {preparingPdf
-              ? 'Preparando PDF…'
-              : attachment
-                ? `Anexo: ${attachment.fileName} (${Math.round(attachment.sizeBytes / 1024)} KB)`
-                : 'PDF não disponível'}
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-olive-200 bg-olive-50 px-3 py-2 text-sm text-olive-900">
+            <span className="inline-flex items-center gap-2">
+              <Paperclip size={16} />
+              {preparingPdf
+                ? 'Preparando PDF…'
+                : attachment
+                  ? `PDF pronto: ${attachment.fileName} (${Math.round(attachment.sizeBytes / 1024)} KB)`
+                  : 'PDF não disponível'}
+            </span>
+            {attachment && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => downloadPdfAttachment(attachment)}
+              >
+                <FileDown size={14} />
+                Baixar PDF
+              </Button>
+            )}
           </div>
 
           {errors.length > 0 && (
@@ -628,13 +648,14 @@ export function SendReportModal({
             </p>
           )}
 
+          <p className="text-sm font-medium text-ink">Enviar o relatório em PDF</p>
           <div className="grid gap-2 sm:grid-cols-2">
             <Button
               onClick={sendViaMailto}
               disabled={sending || preparingPdf || !attachment}
             >
               <ExternalLink size={16} />
-              Abrir no e-mail
+              Enviar PDF por e-mail
             </Button>
             <Button
               variant="secondary"
@@ -659,9 +680,9 @@ export function SendReportModal({
             >
               <Mail size={16} />
               {sending
-                ? 'Enviando…'
+                ? 'Enviando PDF…'
                 : serverEmailReady
-                  ? 'Enviar pelo servidor'
+                  ? 'Enviar PDF pelo servidor'
                   : 'Servidor (não configurado)'}
             </Button>
           </div>

@@ -120,17 +120,23 @@ export function AuditDetailPage() {
                   disabled={pdfBusy}
                   onClick={handleGeneratePdf}
                 >
-                  <FileDown size={16} /> {pdfBusy ? 'Gerando…' : 'PDF'}
+                  <FileDown size={16} /> {pdfBusy ? 'Gerando…' : 'Baixar PDF'}
                 </Button>
                 <Button variant="outline" disabled={pdfBusy} onClick={handlePrint}>
                   <Printer size={16} /> Imprimir
                 </Button>
                 <Button variant="outline" disabled={pdfBusy} onClick={handleShare}>
-                  <Share2 size={16} /> Compartilhar
+                  <Share2 size={16} /> Compartilhar PDF
                 </Button>
                 {canEmail && (
-                  <Button onClick={() => setSendOpen(true)}>
-                    <Mail size={16} /> Enviar por e-mail
+                  <Button
+                    disabled={pdfBusy}
+                    onClick={async () => {
+                      if (!pdfAttachment) await handleGeneratePdf();
+                      setSendOpen(true);
+                    }}
+                  >
+                    <Mail size={16} /> Enviar relatório em PDF
                   </Button>
                 )}
               </>
@@ -140,7 +146,7 @@ export function AuditDetailPage() {
                 disabled={pdfBusy}
                 onClick={handleGeneratePdf}
               >
-                <FileDown size={16} /> {pdfBusy ? 'Gerando…' : 'PDF'}
+                <FileDown size={16} /> {pdfBusy ? 'Gerando…' : 'Baixar PDF'}
               </Button>
             )}
           </div>
@@ -181,22 +187,29 @@ export function AuditDetailPage() {
             Auditoria finalizada
           </h3>
           <p className="mt-1 text-sm text-ink-muted">
-            Gere o PDF, imprima, compartilhe ou envie o relatório aos destinatários
-            cadastrados.
+            Baixe, imprima, compartilhe ou envie o relatório em PDF aos
+            destinatários cadastrados.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <Button size="sm" variant="secondary" disabled={pdfBusy} onClick={handleGeneratePdf}>
-              <FileDown size={16} /> PDF
+              <FileDown size={16} /> Baixar PDF
             </Button>
             <Button size="sm" variant="outline" disabled={pdfBusy} onClick={handlePrint}>
               <Printer size={16} /> Imprimir
             </Button>
             <Button size="sm" variant="outline" disabled={pdfBusy} onClick={handleShare}>
-              <Share2 size={16} /> Compartilhar
+              <Share2 size={16} /> Compartilhar PDF
             </Button>
             {canEmail && (
-              <Button size="sm" onClick={() => setSendOpen(true)}>
-                <Mail size={16} /> Escolher destinatários e enviar
+              <Button
+                size="sm"
+                disabled={pdfBusy}
+                onClick={async () => {
+                  if (!pdfAttachment) await handleGeneratePdf();
+                  setSendOpen(true);
+                }}
+              >
+                <Mail size={16} /> Enviar relatório em PDF
               </Button>
             )}
           </div>

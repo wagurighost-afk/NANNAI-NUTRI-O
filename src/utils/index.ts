@@ -66,12 +66,13 @@ export const priorityColors: Record<Priority, string> = {
 export function scoreForStatus(
   status: ConformityStatus | null,
   maxScore: number,
+  partialScore?: number,
 ): number {
   switch (status) {
     case 'conforme':
       return maxScore;
     case 'parcialmente_conforme':
-      return Math.round(maxScore * 0.5);
+      return partialScore ?? Math.round(maxScore * 0.5);
     case 'nao_conforme':
       return 0;
     case 'nao_se_aplica':
@@ -95,8 +96,10 @@ export function computeAuditTotals(answers: Record<string, AuditAnswer>) {
   let score = 0;
   let maxScore = 0;
   for (const a of applicable) {
-    score += a.score * a.weight;
-    maxScore += 10 * a.weight;
+    // Pontuação absoluta Nutrisano (maxScore da pergunta); weight legado = 1
+    const questionMax = a.maxScore > 0 ? a.maxScore : 10 * (a.weight || 1);
+    score += a.score;
+    maxScore += questionMax;
   }
 
   const conformityPercent = maxScore > 0 ? (score / maxScore) * 100 : 0;

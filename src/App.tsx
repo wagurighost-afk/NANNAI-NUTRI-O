@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Navigate, Outlet, Route, Routes } from 'react-router-dom';
 import { AuthLayout } from './layouts/AuthLayout';
 import { AppLayout } from './layouts/AppLayout';
@@ -22,6 +23,9 @@ import { SettingsPage } from './pages/settings/SettingsPage';
 import { ReportRecipientsPage } from './pages/email/ReportRecipientsPage';
 import { EmailHistoryPage } from './pages/email/EmailHistoryPage';
 import { useAuthStore } from './stores/authStore';
+import { useAppStore } from './stores/appStore';
+import { useEmailStore } from './stores/emailStore';
+import { ensureInitialSeed } from './services/initialSeed';
 
 function ProtectedRoute() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -43,7 +47,31 @@ function ManagerRoute() {
   return <Outlet />;
 }
 
+function useBootstrapSeed() {
+  useEffect(() => {
+    const run = () => ensureInitialSeed();
+
+    const unsubApp = useAppStore.persist.onFinishHydration(run);
+    const unsubEmail = useEmailStore.persist.onFinishHydration(run);
+
+    if (useAppStore.persist.hasHydrated() && useEmailStore.persist.hasHydrated()) {
+      run();
+    }
+
+    // Fallback caso a hidratação já tenha ocorrido antes dos listeners
+    const t = window.setTimeout(run, 50);
+
+    return () => {
+      unsubApp();
+      unsubEmail();
+      window.clearTimeout(t);
+    };
+  }, []);
+}
+
 export default function App() {
+  useBootstrapSeed();
+
   return (
     <Routes>
       <Route path="/" element={<SplashPage />} />

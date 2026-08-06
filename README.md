@@ -8,8 +8,17 @@ PWA de auditorias de segurança alimentar, higiene, estrutura, manipulação e b
 
 **Slogan:** Alimentar bem, viver melhor  
 
-O sistema inicia apenas com a administradora **Renata Fernanda**. Unidades, setores,
-usuários, destinatários e auditorias são cadastrados por ela.
+Na primeira execução o sistema faz um **seed inicial automático** (apenas uma vez,
+sem duplicar registros):
+
+- Unidade **NANNAI Muro Alto**
+- 20 setores operacionais
+- Administradora **Renata Fernanda** (Nutricionista)
+- Destinatários dos relatórios (não são usuários do sistema)
+- Questionário oficial **Auditoria Nutrisano** (119 perguntas · nota máxima 5540)
+
+Auditorias, planos e indicadores começam vazios — sem dados fictícios. Novos
+usuários são cadastrados pela administradora.
 
 **Logo:** [`src/assets/logo-nannai.png`](src/assets/logo-nannai.png) · também em [`public/logo-nannai.png`](public/logo-nannai.png)
 ## Stack

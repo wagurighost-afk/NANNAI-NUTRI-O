@@ -114,8 +114,14 @@ export interface Question {
   order: number;
   text: string;
   guidance?: string;
+  /** Mantido para compatibilidade; pontuação Nutrisano usa maxScore/partialScore absolutos */
   weight: number;
+  /** Pontos quando Conforme */
   maxScore: number;
+  /** Pontos quando Parcial — ausente = opção Parcial não disponível */
+  partialScore?: number;
+  /** Se false, a opção Parcial não é exibida */
+  allowsPartial?: boolean;
   requiresPhoto: boolean;
   critical: boolean;
   active: boolean;
@@ -155,6 +161,9 @@ export interface AuditAnswer {
   status: ConformityStatus | null;
   score: number;
   weight: number;
+  /** Pontuação máxima da pergunta (conforme) */
+  maxScore: number;
+  partialScore?: number;
   comment: string;
   evidences: Evidence[];
   flaggedForReview: boolean;
@@ -262,6 +271,39 @@ export interface AppSettings {
   companyName: string;
   slogan: string;
   theme: 'light';
+  /** Cores da marca (CSS hex) — editáveis pela administradora */
+  brandColors: {
+    olive: string;
+    gold: string;
+    wine: string;
+    cream: string;
+  };
+  /** URL/data da logo customizada (opcional; padrão = logo NANNAI) */
+  logoDataUrl?: string;
+  /** Configurações PWA */
+  pwa: {
+    offlineEnabled: boolean;
+    autoSyncOnReconnect: boolean;
+    installPromptEnabled: boolean;
+  };
+}
+
+export type AppNotificationType =
+  | 'auditoria_pendente'
+  | 'plano_atrasado'
+  | 'plano_vencendo'
+  | 'novo_relatorio'
+  | 'envio_realizado'
+  | 'erro_envio';
+
+export interface AppNotification {
+  id: string;
+  type: AppNotificationType;
+  title: string;
+  message: string;
+  href?: string;
+  createdAt: string;
+  read: boolean;
 }
 
 export type EmailSendStatus =

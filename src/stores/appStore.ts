@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type {
   ActionPlan,
+  AppSettings,
   Audit,
   Questionnaire,
   Sector,
@@ -10,6 +11,7 @@ import type {
   UserAdminHistoryEntry,
 } from '../types';
 import {
+  defaultAppSettings,
   mockActionPlans,
   mockAudits,
   mockQuestionnaire,
@@ -29,6 +31,10 @@ interface AppState {
   sectors: Sector[];
   questionnaire: Questionnaire;
   userAdminHistory: UserAdminHistoryEntry[];
+  settings: AppSettings;
+  initialSeedCompleted: boolean;
+  seedVersion: number;
+  dismissedNotificationIds: string[];
   online: boolean;
   pendingSyncCount: number;
   setOnline: (v: boolean) => void;
@@ -69,9 +75,12 @@ interface AppState {
   removeUser: (id: string) => void;
   addUserAdminHistory: (entry: UserAdminHistoryEntry) => void;
   addUnit: (unit: Omit<Unit, 'id'>) => void;
+  updateUnit: (id: string, patch: Partial<Unit>) => void;
   addSector: (sector: Omit<Sector, 'id'>) => void;
   updateSector: (id: string, patch: Partial<Sector>) => void;
   deleteSector: (id: string) => void;
+  updateSettings: (patch: Partial<AppSettings>) => void;
+  dismissNotification: (id: string) => void;
   markSynced: () => void;
   setUsers: (users: User[]) => void;
 }
@@ -80,11 +89,14 @@ function emptyAnswers(questionnaire: Questionnaire): Audit['answers'] {
   const answers: Audit['answers'] = {};
   for (const section of questionnaire.sections) {
     for (const q of section.questions) {
+      if (!q.active) continue;
       answers[q.id] = {
         questionId: q.id,
         status: null,
         score: 0,
         weight: q.weight,
+        maxScore: q.maxScore,
+        partialScore: q.partialScore,
         comment: '',
         evidences: [],
         flaggedForReview: false,
@@ -104,8 +116,12 @@ export const useAppStore = create<AppState>()(
       sectors: mockSectors,
       questionnaire: mockQuestionnaire,
       userAdminHistory: [],
+      settings: defaultAppSettings,
+      initialSeedCompleted: false,
+      seedVersion: 0,
+      dismissedNotificationIds: [],
       online: typeof navigator !== 'undefined' ? navigator.onLine : true,
-      pendingSyncCount: 1,
+      pendingSyncCount: 0,
 
       setOnline: (v) => set({ online: v }),
 
@@ -152,13 +168,16 @@ export const useAppStore = create<AppState>()(
               .find((q) => q.id === questionId);
             const prev = a.answers[questionId];
             const status = (patch.status ?? prev.status) as ConformityStatus | null;
-            const maxScore = question?.maxScore ?? 10;
+            const maxScore = question?.maxScore ?? prev.maxScore ?? 10;
+            const partialScore = question?.partialScore ?? prev.partialScore;
             const next = {
               ...prev,
               ...patch,
+              maxScore,
+              partialScore,
               score:
                 patch.score ??
-                scoreForStatus(status, maxScore),
+                scoreForStatus(status, maxScore, partialScore),
               answeredAt: patch.status ? new Date().toISOString() : prev.answeredAt,
             };
             const answers = { ...a.answers, [questionId]: next };
@@ -309,6 +328,11 @@ export const useAppStore = create<AppState>()(
           units: [...s.units, { ...unit, id: `unit-${Date.now()}` }],
         })),
 
+      updateUnit: (id, patch) =>
+        set((s) => ({
+          units: s.units.map((u) => (u.id === id ? { ...u, ...patch } : u)),
+        })),
+
       addSector: (sector) =>
         set((s) => ({
           sectors: [...s.sectors, { ...sector, id: `s-${Date.now()}` }],
@@ -326,6 +350,29 @@ export const useAppStore = create<AppState>()(
           sectors: s.sectors.filter((sec) => sec.id !== id),
         })),
 
+      updateSettings: (patch) =>
+        set((s) => ({
+          settings: {
+            ...s.settings,
+            ...patch,
+            brandColors: {
+              ...s.settings.brandColors,
+              ...(patch.brandColors ?? {}),
+            },
+            pwa: {
+              ...s.settings.pwa,
+              ...(patch.pwa ?? {}),
+            },
+          },
+        })),
+
+      dismissNotification: (id) =>
+        set((s) => ({
+          dismissedNotificationIds: s.dismissedNotificationIds.includes(id)
+            ? s.dismissedNotificationIds
+            : [...s.dismissedNotificationIds, id],
+        })),
+
       markSynced: () =>
         set((s) => ({
           pendingSyncCount: 0,
@@ -336,6 +383,6 @@ export const useAppStore = create<AppState>()(
           })),
         })),
     }),
-    { name: 'nannai-app-data-v4' },
+    { name: 'nannai-app-data-v5' },
   ),
 );

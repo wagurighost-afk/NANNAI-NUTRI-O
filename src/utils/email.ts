@@ -15,7 +15,6 @@ export function buildDefaultEmailBody(
   const openPlans = actionPlans.filter(
     (p) => p.auditId === audit.id && p.status !== 'concluido',
   ).length;
-  // totals already use answer.maxScore when present
   const date = formatDate(audit.completedAt ?? audit.startedAt);
 
   return `Olá,

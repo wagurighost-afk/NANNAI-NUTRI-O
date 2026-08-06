@@ -1,8 +1,15 @@
-import type { ReportRecipient, Sector, Unit, User } from '../types';
+import type {
+  RecipientGroup,
+  ReportRecipient,
+  Sector,
+  Unit,
+  User,
+} from '../types';
 import { permissionsFor } from '../utils/permissions';
 import { nutrisanoQuestionnaire } from './nutrisanoQuestionnaire';
 
-export const SEED_VERSION = 1;
+export const SEED_VERSION = 2;
+export const SEED_GROUP_ID = 'grp-gestao-nutricao';
 
 export const SEED_UNIT_ID = 'unit-nannai-muro-alto';
 export const SEED_ADMIN_ID = 'uid-renata-fernanda';
@@ -106,19 +113,35 @@ export function buildSeedAdmin(unitId: string): User {
 
 export function buildSeedRecipients(unitId: string): ReportRecipient[] {
   const now = '2026-01-01T10:00:00Z';
-  return SEED_RECIPIENTS.map((r, index) => ({
+  return SEED_RECIPIENTS.map((r) => ({
     id: r.id,
     name: r.name,
     email: r.email,
     roleTitle: undefined,
     active: true,
-    isPrimary: index < 3,
+    /** Todos os destinatários oficiais recebem por padrão */
+    isPrimary: true,
     unitIds: [unitId],
     sectorIds: [],
-    groupIds: [],
+    groupIds: [SEED_GROUP_ID],
     createdAt: now,
     updatedAt: now,
   }));
+}
+
+export function buildSeedRecipientGroup(
+  unitId: string,
+  recipientIds: string[],
+): RecipientGroup {
+  return {
+    id: SEED_GROUP_ID,
+    name: 'Gestão e Nutrição',
+    key: 'nutricao',
+    description: 'Destinatários automáticos dos relatórios do NANNAI Muro Alto',
+    recipientIds,
+    unitIds: [unitId],
+    active: true,
+  };
 }
 
 export { nutrisanoQuestionnaire };

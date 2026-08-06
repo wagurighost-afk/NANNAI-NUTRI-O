@@ -113,7 +113,7 @@ export function AuditDetailPage() {
                 <Button>Continuar</Button>
               </Link>
             )}
-            {audit.status === 'concluida' && (
+            {audit.status === 'concluida' ? (
               <>
                 <Button
                   variant="secondary"
@@ -134,8 +134,7 @@ export function AuditDetailPage() {
                   </Button>
                 )}
               </>
-            )}
-            {audit.status !== 'concluida' && (
+            ) : (
               <Button
                 variant="secondary"
                 disabled={pdfBusy}

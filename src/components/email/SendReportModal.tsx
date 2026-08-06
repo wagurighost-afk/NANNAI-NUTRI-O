@@ -2,9 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
   CheckSquare,
+  Copy,
+  ExternalLink,
   Mail,
   Paperclip,
   Plus,
+  Share2,
   Square,
   Users,
 } from 'lucide-react';
@@ -31,6 +34,14 @@ import {
   validateSendPayload,
 } from '../../services/emailService';
 import { useAppStore } from '../../stores/appStore';
+import {
+  copyEmailsToClipboard,
+  downloadPdfAttachment,
+  isEmailApiConfigured,
+  openMailtoCompose,
+  sharePdfAttachment,
+} from '../../utils/reportDelivery';
+import { Link } from 'react-router-dom';
 
 interface SendReportModalProps {
   open: boolean;
@@ -39,7 +50,6 @@ interface SendReportModalProps {
   questionnaire: Questionnaire;
   actionPlans: ActionPlan[];
   user: User | null;
-  /** When provided, reuse already-generated PDF */
   attachment?: AuditPdfAttachment | null;
 }
 
@@ -59,6 +69,7 @@ export function SendReportModal({
   const addHistoryRecord = useEmailStore((s) => s.addHistoryRecord);
   const updateHistoryRecord = useEmailStore((s) => s.updateHistoryRecord);
   const online = useAppStore((s) => s.online);
+  const serverEmailReady = isEmailApiConfigured();
 
   const activeRecipients = useMemo(
     () => recipients.filter((r) => r.active),
@@ -94,7 +105,6 @@ export function SendReportModal({
   );
   const [preparingPdf, setPreparingPdf] = useState(false);
   const [sending, setSending] = useState(false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [errors, setErrors] = useState<string[]>([]);
   const [savePermanent, setSavePermanent] = useState(false);
@@ -107,13 +117,13 @@ export function SendReportModal({
     setSelectedIds(new Set(auto.selectedIds));
     setFeedback('');
     setErrors([]);
-    setConfirmOpen(false);
     setTempList([]);
     setTempEmail('');
     setTempName('');
 
     if (initialAttachment) {
       setAttachment(initialAttachment);
+      setPreparingPdf(false);
       return;
     }
 
@@ -133,7 +143,9 @@ export function SendReportModal({
     return () => {
       cancelled = true;
     };
-  }, [open, audit.id]);
+    // Inicializa ao abrir / trocar auditoria — evita loop com objetos derivados
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, audit.id, initialAttachment]);
 
   const toggle = (id: string) => {
     setSelectedIds((prev) => {
@@ -151,7 +163,7 @@ export function SendReportModal({
   const addTemporary = () => {
     const email = tempEmail.trim().toLowerCase();
     if (!isValidEmail(email)) {
-      setErrors(['Informe um e-mail válido para o destinatário temporário.']);
+      setErrors(['Informe um e-mail válido para o destinatário.']);
       return;
     }
     if (savePermanent) {
@@ -217,8 +229,7 @@ export function SendReportModal({
     };
   };
 
-  const requestSend = () => {
-    setFeedback('');
+  const requireReadyPayload = () => {
     const payload = buildPayload();
     const validation = validateSendPayload(payload, {
       online,
@@ -226,20 +237,20 @@ export function SendReportModal({
     });
     if (!validation.ok) {
       setErrors(validation.errors);
-      return;
+      return null;
     }
     setErrors([]);
-    setConfirmOpen(true);
+    return payload;
   };
 
-  const confirmSend = async () => {
-    setConfirmOpen(false);
-    setSending(true);
-    setFeedback('');
-    const payload = buildPayload();
+  const logDelivery = (
+    payload: NonNullable<ReturnType<typeof buildPayload>>,
+    status: 'enviado' | 'falha' | 'aguardando_conexao',
+    message: string,
+    extraErrors: string[] = [],
+  ) => {
     const now = new Date().toISOString();
     const recordId = `email-${Date.now()}`;
-
     addHistoryRecord({
       id: recordId,
       auditId: audit.id,
@@ -251,6 +262,109 @@ export function SendReportModal({
       recipients: [...payload.to, ...payload.cc, ...payload.bcc],
       pdfFileName: payload.attachment!.fileName,
       pdfSizeBytes: payload.attachment!.sizeBytes,
+      status,
+      sentByUserId: payload.sentByUserId,
+      sentByName: payload.sentByName,
+      sentAt: status === 'enviado' ? now : undefined,
+      createdAt: now,
+      updatedAt: now,
+      attempts: 1,
+      errors: extraErrors,
+      copyToSelf: payload.copyToSelf,
+      queuedOffline: status === 'aguardando_conexao',
+    });
+    setFeedback(message);
+  };
+
+  const sendViaMailto = () => {
+    const payload = requireReadyPayload();
+    if (!payload?.attachment) return;
+
+    downloadPdfAttachment(payload.attachment);
+    const cc = [...payload.cc];
+    if (payload.copyToSelf && payload.selfEmail) {
+      cc.push({
+        name: payload.sentByName,
+        email: payload.selfEmail,
+        type: 'cc',
+      });
+    }
+    openMailtoCompose({
+      to: payload.to,
+      cc,
+      bcc: payload.bcc,
+      subject: payload.subject,
+      body: `${payload.body}\n\n(Anexe o PDF baixado: ${payload.attachment.fileName})`,
+    });
+    logDelivery(
+      payload,
+      'enviado',
+      `PDF baixado e e-mail aberto com ${payload.to.length} destinatário(s). Anexe o PDF antes de enviar.`,
+    );
+  };
+
+  const sendViaShare = async () => {
+    const payload = requireReadyPayload();
+    if (!payload?.attachment) return;
+    setSending(true);
+    try {
+      const result = await sharePdfAttachment(payload.attachment, {
+        title: `Relatório ${audit.code}`,
+        text: `${audit.unitName} · ${audit.sectorName} · ${subject}`,
+      });
+      logDelivery(
+        payload,
+        'enviado',
+        result === 'shared'
+          ? 'PDF compartilhado. Escolha o aplicativo (e-mail, WhatsApp etc.).'
+          : 'PDF baixado. Envie o arquivo aos destinatários pelo seu aplicativo.',
+      );
+    } catch (err) {
+      setErrors([
+        err instanceof Error ? err.message : 'Não foi possível compartilhar.',
+      ]);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const copySelectedEmails = async () => {
+    const payload = buildPayload();
+    if (payload.to.length === 0) {
+      setErrors(['Selecione ao menos um destinatário.']);
+      return;
+    }
+    await copyEmailsToClipboard(payload.to.map((r) => r.email));
+    setFeedback('E-mails copiados. Cole no seu aplicativo de e-mail.');
+    setErrors([]);
+  };
+
+  const sendViaServer = async () => {
+    const payload = requireReadyPayload();
+    if (!payload?.attachment) return;
+
+    if (!serverEmailReady) {
+      setErrors([
+        'Envio pelo servidor não está configurado. Use “Abrir no e-mail” ou “Compartilhar PDF”.',
+      ]);
+      return;
+    }
+
+    setSending(true);
+    setFeedback('');
+    const now = new Date().toISOString();
+    const recordId = `email-${Date.now()}`;
+    addHistoryRecord({
+      id: recordId,
+      auditId: audit.id,
+      auditCode: audit.code,
+      unitName: audit.unitName,
+      sectorName: audit.sectorName,
+      subject: payload.subject,
+      body: payload.body,
+      recipients: [...payload.to, ...payload.cc, ...payload.bcc],
+      pdfFileName: payload.attachment.fileName,
+      pdfSizeBytes: payload.attachment.sizeBytes,
       status: 'preparando',
       sentByUserId: payload.sentByUserId,
       sentByName: payload.sentByName,
@@ -264,7 +378,7 @@ export function SendReportModal({
 
     try {
       const result = await queueOrSendReport(
-        { ...payload, attachment: payload.attachment! },
+        { ...payload, attachment: payload.attachment },
         online,
       );
       updateHistoryRecord(recordId, {
@@ -277,6 +391,8 @@ export function SendReportModal({
         result.recordPatch.status === 'aguardando_conexao'
       ) {
         setTimeout(() => onClose(), 1600);
+      } else if (result.recordPatch.errors?.length) {
+        setErrors(result.recordPatch.errors);
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Erro no envio';
@@ -294,63 +410,78 @@ export function SendReportModal({
   if (!open) return null;
 
   const allowed = canSendReportEmail(user?.role);
+  const selectedCount = selectedIds.size + tempList.length;
 
   return (
-    <>
-      <Modal open={open} onClose={onClose} title="Enviar relatório por e-mail">
-        {!allowed ? (
-          <p className="rounded-xl bg-wine-50 px-3 py-2 text-sm text-wine-700">
-            Apenas nutricionista, gestor ou administrador podem enviar
-            relatórios.
-          </p>
-        ) : (
-          <div className="space-y-4">
-            {auto.criticalAlert && (
-              <div className="flex gap-2 rounded-xl border border-wine-300 bg-wine-50 px-3 py-2 text-sm text-wine-800">
-                <AlertTriangle className="mt-0.5 shrink-0" size={18} />
-                <div>
-                  <p className="font-medium">Não conformidade crítica detectada</p>
-                  <p className="text-xs">
-                    Os destinatários principais foram selecionados automaticamente.
-                    Revise a lista antes de enviar.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {auto.matchedRuleNames.length > 0 && (
-              <p className="text-xs text-ink-muted">
-                Regras aplicadas: {auto.matchedRuleNames.join(' · ')}
-              </p>
-            )}
-
-            <Input
-              label="Assunto"
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-            />
-            <Textarea
-              label="Mensagem"
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              className="min-h-40 font-mono text-xs leading-relaxed"
-            />
-
-            <div className="rounded-xl border border-cream-200 bg-cream-50/80 p-3">
-              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                <p className="flex items-center gap-1.5 text-sm font-medium text-ink">
-                  <Users size={16} /> Destinatários
+    <Modal open={open} onClose={onClose} title="Enviar relatório / resultado">
+      {!allowed ? (
+        <p className="rounded-xl bg-wine-50 px-3 py-2 text-sm text-wine-700">
+          Apenas nutricionista, gestor ou administrador podem enviar
+          relatórios.
+        </p>
+      ) : (
+        <div className="space-y-4">
+          {auto.criticalAlert && (
+            <div className="flex gap-2 rounded-xl border border-wine-300 bg-wine-50 px-3 py-2 text-sm text-wine-800">
+              <AlertTriangle className="mt-0.5 shrink-0" size={18} />
+              <div>
+                <p className="font-medium">Não conformidade crítica detectada</p>
+                <p className="text-xs">
+                  Revise os destinatários antes de enviar o resultado.
                 </p>
-                <div className="flex flex-wrap gap-1">
-                  <Button type="button" size="sm" variant="outline" onClick={selectAll}>
-                    <CheckSquare size={14} /> Selecionar todos
-                  </Button>
-                  <Button type="button" size="sm" variant="ghost" onClick={deselectAll}>
-                    <Square size={14} /> Desmarcar todos
-                  </Button>
-                </div>
               </div>
-              <ul className="max-h-48 space-y-1 overflow-y-auto">
+            </div>
+          )}
+
+          {!serverEmailReady && (
+            <p className="rounded-xl border border-gold-200 bg-gold-50 px-3 py-2 text-sm text-gold-900">
+              Para enviar agora, use <strong>Abrir no e-mail</strong> (baixa o PDF
+              e abre Outlook/Gmail com todos os destinatários) ou{' '}
+              <strong>Compartilhar PDF</strong>.
+            </p>
+          )}
+
+          <Input
+            label="Assunto"
+            value={subject}
+            onChange={(e) => setSubject(e.target.value)}
+          />
+          <Textarea
+            label="Mensagem"
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            className="min-h-32 font-mono text-xs leading-relaxed"
+          />
+
+          <div className="rounded-xl border border-cream-200 bg-cream-50/80 p-3">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <p className="flex items-center gap-1.5 text-sm font-medium text-ink">
+                <Users size={16} /> Destinatários ({selectedCount} selecionado
+                {selectedCount === 1 ? '' : 's'})
+              </p>
+              <div className="flex flex-wrap gap-1">
+                <Button type="button" size="sm" variant="outline" onClick={selectAll}>
+                  <CheckSquare size={14} /> Selecionar todos
+                </Button>
+                <Button type="button" size="sm" variant="ghost" onClick={deselectAll}>
+                  <Square size={14} /> Desmarcar
+                </Button>
+              </div>
+            </div>
+
+            {activeRecipients.length === 0 ? (
+              <p className="text-sm text-ink-muted">
+                Nenhum destinatário cadastrado.{' '}
+                <Link
+                  to="/app/destinatarios-relatorios"
+                  className="text-olive-700 underline"
+                  onClick={onClose}
+                >
+                  Cadastrar destinatários
+                </Link>
+              </p>
+            ) : (
+              <ul className="max-h-52 space-y-1 overflow-y-auto">
                 {activeRecipients.map((r) => (
                   <li key={r.id}>
                     <label className="flex cursor-pointer items-start gap-2 rounded-lg px-2 py-1.5 hover:bg-white">
@@ -370,7 +501,6 @@ export function SendReportModal({
                           )}
                         </span>
                         <span className="block text-xs text-ink-muted">
-                          {r.roleTitle ? `${r.roleTitle} · ` : ''}
                           {r.email}
                         </span>
                       </span>
@@ -378,173 +508,169 @@ export function SendReportModal({
                   </li>
                 ))}
               </ul>
-              {tempList.length > 0 && (
-                <div className="mt-2 border-t border-cream-200 pt-2">
-                  <p className="mb-1 text-xs font-medium text-ink-muted">
-                    Temporários
-                  </p>
-                  {tempList.map((t) => (
-                    <div
-                      key={t.email}
-                      className="flex items-center justify-between text-sm"
+            )}
+
+            {tempList.length > 0 && (
+              <div className="mt-2 border-t border-cream-200 pt-2">
+                <p className="mb-1 text-xs font-medium text-ink-muted">
+                  Temporários
+                </p>
+                {tempList.map((t) => (
+                  <div
+                    key={t.email}
+                    className="flex items-center justify-between text-sm"
+                  >
+                    <span>
+                      {t.name} — {t.email}
+                    </span>
+                    <button
+                      type="button"
+                      className="text-xs text-wine-700"
+                      onClick={() =>
+                        setTempList((list) =>
+                          list.filter((x) => x.email !== t.email),
+                        )
+                      }
                     >
-                      <span>
-                        {t.name} — {t.email}
-                      </span>
-                      <button
-                        type="button"
-                        className="text-xs text-wine-700"
-                        onClick={() =>
-                          setTempList((list) =>
-                            list.filter((x) => x.email !== t.email),
-                          )
-                        }
-                      >
-                        Remover
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                      Remover
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
-            <div className="grid gap-2 sm:grid-cols-2">
-              <Input
-                label="Nome (opcional)"
-                value={tempName}
-                onChange={(e) => setTempName(e.target.value)}
-                placeholder="Novo destinatário"
-              />
-              <Input
-                label="Adicionar e-mail"
-                type="email"
-                value={tempEmail}
-                onChange={(e) => setTempEmail(e.target.value)}
-                placeholder="email@nannai.com.br"
-              />
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <label className="flex items-center gap-2 text-sm text-ink">
-                <input
-                  type="checkbox"
-                  className="accent-olive-600"
-                  checked={savePermanent}
-                  onChange={(e) => setSavePermanent(e.target.checked)}
-                />
-                Adicionar destinatário permanente
-              </label>
-              {savePermanent && (
-                <Select
-                  label=""
-                  options={groups.map((g) => ({
-                    value: g.id,
-                    label: g.name,
-                  }))}
-                  value={permanentGroupId}
-                  onChange={(e) => setPermanentGroupId(e.target.value)}
-                  className="w-48"
-                />
-              )}
-              <Button type="button" size="sm" variant="outline" onClick={addTemporary}>
-                <Plus size={14} />
-                {savePermanent ? 'Cadastrar e selecionar' : 'Adicionar temporário'}
-              </Button>
-            </div>
-
+          <div className="grid gap-2 sm:grid-cols-2">
             <Input
-              label="Cópia — CC (e-mails separados por vírgula)"
-              value={ccEmails}
-              onChange={(e) => setCcEmails(e.target.value)}
-              placeholder="email1@nannai.com.br, email2@nannai.com.br"
+              label="Nome (opcional)"
+              value={tempName}
+              onChange={(e) => setTempName(e.target.value)}
+              placeholder="Novo destinatário"
             />
             <Input
-              label="Cópia oculta — CCO"
-              value={bccEmails}
-              onChange={(e) => setBccEmails(e.target.value)}
-              placeholder="oculto@nannai.com.br"
+              label="Adicionar e-mail"
+              type="email"
+              value={tempEmail}
+              onChange={(e) => setTempEmail(e.target.value)}
+              placeholder="email@nannai.com.br"
             />
-
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
             <label className="flex items-center gap-2 text-sm text-ink">
               <input
                 type="checkbox"
                 className="accent-olive-600"
-                checked={copyToSelf}
-                onChange={(e) => setCopyToSelf(e.target.checked)}
+                checked={savePermanent}
+                onChange={(e) => setSavePermanent(e.target.checked)}
               />
-              Enviar uma cópia para mim ({user?.email})
+              Salvar no cadastro
             </label>
-
-            <div className="flex items-center gap-2 rounded-xl border border-olive-200 bg-olive-50 px-3 py-2 text-sm text-olive-900">
-              <Paperclip size={16} />
-              {preparingPdf
-                ? 'Preparando PDF…'
-                : attachment
-                  ? `Anexo: ${attachment.fileName} (${Math.round(attachment.sizeBytes / 1024)} KB)`
-                  : 'PDF não disponível'}
-            </div>
-
-            {!online && (
-              <p className="rounded-xl bg-gold-100 px-3 py-2 text-sm text-gold-900">
-                Você está offline. O envio será enfileirado e disparado quando a
-                conexão voltar.
-              </p>
+            {savePermanent && groups.length > 0 && (
+              <Select
+                label=""
+                options={groups.map((g) => ({
+                  value: g.id,
+                  label: g.name,
+                }))}
+                value={permanentGroupId}
+                onChange={(e) => setPermanentGroupId(e.target.value)}
+                className="w-48"
+              />
             )}
-
-            {errors.length > 0 && (
-              <ul className="rounded-xl bg-wine-50 px-3 py-2 text-sm text-wine-700">
-                {errors.map((e) => (
-                  <li key={e}>{e}</li>
-                ))}
-              </ul>
-            )}
-
-            {feedback && (
-              <p className="rounded-xl bg-olive-50 px-3 py-2 text-sm text-olive-800">
-                {feedback}
-              </p>
-            )}
-
-            <div className="flex flex-wrap gap-2 pt-1">
-              <Button
-                onClick={requestSend}
-                disabled={sending || preparingPdf || !attachment}
-              >
-                <Mail size={16} />
-                {sending ? 'Enviando…' : 'Enviar relatório'}
-              </Button>
-              <Button variant="outline" onClick={onClose} disabled={sending}>
-                Cancelar
-              </Button>
-            </div>
+            <Button type="button" size="sm" variant="outline" onClick={addTemporary}>
+              <Plus size={14} />
+              Adicionar
+            </Button>
           </div>
-        )}
-      </Modal>
 
-      <Modal
-        open={confirmOpen}
-        onClose={() => setConfirmOpen(false)}
-        title="Confirmar envio"
-      >
-        <p className="text-sm text-ink-muted">
-          Confirma o envio do relatório <strong>{audit.code}</strong> para{' '}
-          <strong>
-            {selectedIds.size + tempList.length} destinatário(s)
-          </strong>
-          {copyToSelf ? ' (com cópia para você)' : ''}?
-        </p>
-        <p className="mt-2 text-xs text-ink-muted">
-          O PDF será anexado automaticamente. O envio ocorre pelo servidor seguro
-          do NANNAI (sem expor credenciais no navegador).
-        </p>
-        <div className="mt-4 flex gap-2">
-          <Button onClick={confirmSend} fullWidth>
-            Confirmar e enviar
-          </Button>
-          <Button variant="outline" onClick={() => setConfirmOpen(false)}>
-            Voltar
+          <Input
+            label="Cópia — CC"
+            value={ccEmails}
+            onChange={(e) => setCcEmails(e.target.value)}
+            placeholder="email1@nannai.com.br, email2@nannai.com.br"
+          />
+          <Input
+            label="Cópia oculta — CCO"
+            value={bccEmails}
+            onChange={(e) => setBccEmails(e.target.value)}
+          />
+
+          <label className="flex items-center gap-2 text-sm text-ink">
+            <input
+              type="checkbox"
+              className="accent-olive-600"
+              checked={copyToSelf}
+              onChange={(e) => setCopyToSelf(e.target.checked)}
+            />
+            Incluir cópia para mim ({user?.email})
+          </label>
+
+          <div className="flex items-center gap-2 rounded-xl border border-olive-200 bg-olive-50 px-3 py-2 text-sm text-olive-900">
+            <Paperclip size={16} />
+            {preparingPdf
+              ? 'Preparando PDF…'
+              : attachment
+                ? `Anexo: ${attachment.fileName} (${Math.round(attachment.sizeBytes / 1024)} KB)`
+                : 'PDF não disponível'}
+          </div>
+
+          {errors.length > 0 && (
+            <ul className="rounded-xl bg-wine-50 px-3 py-2 text-sm text-wine-700">
+              {errors.map((e) => (
+                <li key={e}>{e}</li>
+              ))}
+            </ul>
+          )}
+
+          {feedback && (
+            <p className="rounded-xl bg-olive-50 px-3 py-2 text-sm text-olive-800">
+              {feedback}
+            </p>
+          )}
+
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Button
+              onClick={sendViaMailto}
+              disabled={sending || preparingPdf || !attachment}
+            >
+              <ExternalLink size={16} />
+              Abrir no e-mail
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={sendViaShare}
+              disabled={sending || preparingPdf || !attachment}
+            >
+              <Share2 size={16} />
+              Compartilhar PDF
+            </Button>
+            <Button
+              variant="outline"
+              onClick={copySelectedEmails}
+              disabled={sending}
+            >
+              <Copy size={16} />
+              Copiar e-mails
+            </Button>
+            <Button
+              variant={serverEmailReady ? 'primary' : 'outline'}
+              onClick={sendViaServer}
+              disabled={sending || preparingPdf || !attachment}
+            >
+              <Mail size={16} />
+              {sending
+                ? 'Enviando…'
+                : serverEmailReady
+                  ? 'Enviar pelo servidor'
+                  : 'Servidor (não configurado)'}
+            </Button>
+          </div>
+
+          <Button variant="ghost" onClick={onClose} disabled={sending} fullWidth>
+            Fechar
           </Button>
         </div>
-      </Modal>
-    </>
+      )}
+    </Modal>
   );
 }

@@ -1,6 +1,7 @@
 import {
   SEED_VERSION,
   buildSeedAdmin,
+  buildSeedRecipientGroup,
   buildSeedRecipients,
   buildSeedSectors,
   buildSeedUnit,
@@ -143,24 +144,69 @@ function seedEmailData(): void {
   const unitId = app.units[0]?.id ?? buildSeedUnit().id;
   const email = useEmailStore.getState();
   let recipients = [...email.recipients];
+  let groups = [...email.groups];
   let changed = false;
 
   const seedRecipients = buildSeedRecipients(unitId);
   for (const rcpt of seedRecipients) {
-    const exists =
-      recipients.some((r) => r.id === rcpt.id) ||
-      recipients.some(
+    const existing =
+      recipients.find((r) => r.id === rcpt.id) ||
+      recipients.find(
         (r) => r.email.toLowerCase() === rcpt.email.toLowerCase(),
       );
-    if (!exists) {
+    if (!existing) {
       recipients = [...recipients, rcpt];
+      changed = true;
+    } else if (!existing.isPrimary || existing.groupIds.length === 0) {
+      // Garante que destinatários oficiais fiquem ativos/principais no upgrade
+      recipients = recipients.map((r) =>
+        r.id === existing.id ||
+        r.email.toLowerCase() === existing.email.toLowerCase()
+          ? {
+              ...r,
+              active: true,
+              isPrimary: true,
+              unitIds: r.unitIds.includes(unitId)
+                ? r.unitIds
+                : [...r.unitIds, unitId],
+              groupIds: r.groupIds.includes(rcpt.groupIds[0])
+                ? r.groupIds
+                : [...r.groupIds, ...rcpt.groupIds],
+              updatedAt: new Date().toISOString(),
+            }
+          : r,
+      );
       changed = true;
     }
   }
 
-  if (changed || !email.initialSeedCompleted) {
+  const recipientIds = seedRecipients.map((r) => r.id);
+  const seedGroup = buildSeedRecipientGroup(unitId, recipientIds);
+  const existingGroup =
+    groups.find((g) => g.id === seedGroup.id) ||
+    groups.find((g) => g.name === seedGroup.name);
+  if (!existingGroup) {
+    groups = [...groups, seedGroup];
+    changed = true;
+  } else if (existingGroup.recipientIds.length < recipientIds.length) {
+    groups = groups.map((g) =>
+      g.id === existingGroup.id
+        ? {
+            ...g,
+            active: true,
+            recipientIds: Array.from(
+              new Set([...g.recipientIds, ...recipientIds]),
+            ),
+          }
+        : g,
+    );
+    changed = true;
+  }
+
+  if (changed || !email.initialSeedCompleted || email.seedVersion < SEED_VERSION) {
     useEmailStore.setState({
       recipients,
+      groups,
       initialSeedCompleted: true,
       seedVersion: SEED_VERSION,
     });

@@ -32,12 +32,12 @@ export function ReportsPage() {
     <div>
       <PageHeader
         title="Relatórios"
-        subtitle="PDF, impressão, compartilhamento e envio por e-mail"
+        subtitle="Baixe, imprima ou envie o relatório em PDF aos destinatários"
       />
       {audits.length === 0 ? (
         <EmptyState
           title="Nenhum relatório ainda"
-          description="Finalize uma auditoria para gerar PDF e enviar aos destinatários."
+          description="Finalize uma auditoria para gerar o PDF e enviar aos destinatários."
         />
       ) : null}
       <div className="space-y-3">
@@ -66,7 +66,7 @@ export function ReportsPage() {
                   generateAuditPdf(audit, questionnaire, plansFor(audit.id))
                 }
               >
-                <FileDown size={16} /> PDF
+                <FileDown size={16} /> Baixar PDF
               </Button>
               <Button
                 size="sm"
@@ -102,7 +102,7 @@ export function ReportsPage() {
                   await generateAuditPdf(audit, questionnaire, plansFor(audit.id));
                 }}
               >
-                <Share2 size={16} /> Compartilhar
+                <Share2 size={16} /> Compartilhar PDF
               </Button>
               {canEmail && (
                 <Button
@@ -116,7 +116,7 @@ export function ReportsPage() {
                     setSendAudit(audit);
                   }}
                 >
-                  <Mail size={16} /> Enviar por e-mail
+                  <Mail size={16} /> Enviar relatório em PDF
                 </Button>
               )}
             </div>

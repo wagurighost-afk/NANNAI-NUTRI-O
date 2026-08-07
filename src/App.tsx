@@ -11,6 +11,7 @@ import { AuditsListPage } from './pages/audits/AuditsListPage';
 import { AuditExecutionPage } from './pages/audits/AuditExecutionPage';
 import { AuditSummaryPage } from './pages/audits/AuditSummaryPage';
 import { AuditClosingPage } from './pages/audits/AuditClosingPage';
+import { AuditFinalizedPage } from './pages/audits/AuditFinalizedPage';
 import { AuditDetailPage } from './pages/audits/AuditDetailPage';
 import { ActionPlansPage } from './pages/action-plans/ActionPlansPage';
 import { ActionPlanDetailPage } from './pages/action-plans/ActionPlanDetailPage';
@@ -92,6 +93,7 @@ export default function App() {
           <Route path="auditorias/:id/executar" element={<AuditExecutionPage />} />
           <Route path="auditorias/:id/resumo" element={<AuditSummaryPage />} />
           <Route path="auditorias/:id/encerrar" element={<AuditClosingPage />} />
+          <Route path="auditorias/:id/finalizada" element={<AuditFinalizedPage />} />
           <Route path="planos-de-acao" element={<ActionPlansPage />} />
           <Route path="planos-de-acao/:id" element={<ActionPlanDetailPage />} />
           <Route path="relatorios" element={<ReportsPage />} />

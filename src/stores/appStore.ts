@@ -62,6 +62,7 @@ interface AppState {
       responsibleSignature: Audit['responsibleSignature'];
     },
   ) => void;
+  updateAudit: (id: string, patch: Partial<Audit>) => void;
   createActionPlan: (plan: Omit<ActionPlan, 'id' | 'createdAt' | 'updatedAt' | 'syncStatus'>) => ActionPlan;
   updateActionPlan: (id: string, patch: Partial<ActionPlan>) => void;
   updateQuestionnaire: (q: Questionnaire) => void;
@@ -220,12 +221,27 @@ export const useAppStore = create<AppState>()(
                   ...data,
                   status: 'concluida' as const,
                   completedAt: new Date().toISOString(),
+                  reportSendStatus: a.reportSendStatus ?? 'aguardando_envio',
                   syncStatus: 'pending' as const,
                   updatedAt: new Date().toISOString(),
                 }
               : a,
           ),
           pendingSyncCount: s.pendingSyncCount + 1,
+        }));
+      },
+
+      updateAudit: (id, patch) => {
+        set((s) => ({
+          audits: s.audits.map((a) =>
+            a.id === id
+              ? {
+                  ...a,
+                  ...patch,
+                  updatedAt: new Date().toISOString(),
+                }
+              : a,
+          ),
         }));
       },
 

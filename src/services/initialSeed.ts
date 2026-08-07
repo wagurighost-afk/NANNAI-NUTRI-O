@@ -1,14 +1,15 @@
 import {
   SEED_VERSION,
-  buildSeedAdmin,
   buildSeedRecipientGroup,
   buildSeedRecipients,
   buildSeedSectors,
   buildSeedUnit,
+  buildSeedUsers,
   nutrisanoQuestionnaire,
 } from '../data/seedConfig';
 import { useAppStore } from '../stores/appStore';
 import { useEmailStore } from '../stores/emailStore';
+import { permissionsFor } from '../utils/permissions';
 
 let seedRunning = false;
 
@@ -69,35 +70,50 @@ function seedAppData(): void {
     }
   }
 
-  // Administradora única
-  const seedAdmin = buildSeedAdmin(unitId);
-  const existingAdmin =
-    users.find((u) => u.id === seedAdmin.id || u.uid === seedAdmin.uid) ??
-    users.find(
-      (u) => u.email.toLowerCase() === seedAdmin.email.toLowerCase(),
-    );
+  // Contas iniciais: David e Mauro (admins fundadores) + Renata (nutricionista)
+  const seedUsers = buildSeedUsers(unitId);
+  const nowIso = new Date().toISOString();
 
-  if (!existingAdmin) {
-    users = [seedAdmin, ...users];
-    changed = true;
-  } else {
-    const needsUnit =
-      !existingAdmin.unitIds.includes(unitId) ||
-      existingAdmin.role !== 'admin' ||
-      !existingAdmin.isActive;
-    if (needsUnit) {
+  for (const seedUser of seedUsers) {
+    const existing =
+      users.find((u) => u.id === seedUser.id || u.uid === seedUser.uid) ??
+      users.find(
+        (u) => u.email.toLowerCase() === seedUser.email.toLowerCase(),
+      );
+
+    if (!existing) {
+      users = [seedUser, ...users];
+      changed = true;
+      continue;
+    }
+
+    const unitIds = existing.unitIds.includes(unitId)
+      ? existing.unitIds
+      : [...existing.unitIds, unitId];
+    const needsSync =
+      existing.role !== seedUser.role ||
+      existing.professionalRole !== seedUser.professionalRole ||
+      !(existing.isActive ?? existing.active) ||
+      unitIds !== existing.unitIds ||
+      existing.email.toLowerCase() !== seedUser.email.toLowerCase();
+
+    if (needsSync) {
       users = users.map((u) =>
-        u.id === existingAdmin.id || u.uid === existingAdmin.uid
+        u.id === existing.id || u.uid === existing.uid
           ? {
               ...u,
-              role: 'admin' as const,
-              professionalRole: 'Nutricionista' as const,
-              unitIds: u.unitIds.includes(unitId)
-                ? u.unitIds
-                : [...u.unitIds, unitId],
+              name: seedUser.name,
+              email: seedUser.email,
+              role: seedUser.role,
+              professionalRole: seedUser.professionalRole,
+              permissions: permissionsFor(
+                seedUser.role,
+                seedUser.professionalRole,
+              ),
+              unitIds,
               active: true,
               isActive: true,
-              updatedAt: new Date().toISOString(),
+              updatedAt: nowIso,
             }
           : u,
       );

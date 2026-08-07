@@ -13,12 +13,13 @@ sem duplicar registros):
 
 - Unidade **NANNAI Muro Alto**
 - 20 setores operacionais
-- Administradora **Renata Fernanda** (Nutricionista)
+- Administradores fundadores **David Oliveira** e **Mauro José**
+- Usuária / nutricionista **Renata Fernanda**
 - Destinatários dos relatórios (não são usuários do sistema)
 - Questionário oficial **Auditoria Nutrisano** (119 perguntas · nota máxima 5540)
 
 Auditorias, planos e indicadores começam vazios — sem dados fictícios. Novos
-usuários são cadastrados pela administradora.
+usuários são cadastrados pelos administradores.
 
 **Logo:** [`src/assets/logo-nannai.png`](src/assets/logo-nannai.png) · também em [`public/logo-nannai.png`](public/logo-nannai.png)
 ## Stack
@@ -88,13 +89,15 @@ VITE_EMAIL_API_URL=https://REGION-PROJECT.cloudfunctions.net/sendAuditReportEmai
 
 Stub: `functions/sendAuditReportEmail.js`
 
-## Administradora inicial
+## Contas iniciais
 
 | Nome | E-mail | Cargo | Perfil |
 |------|--------|-------|--------|
-| Renata Fernanda | renata.fernanda@nannai.com.br | Nutricionista | Administradora |
+| David Oliveira | david.oliveira@nannai.com.br | Administrador | Admin fundador |
+| Mauro José | mauro.jose@nannai.net.br | Administrador | Admin fundador |
+| Renata Fernanda | renata.fernanda@nannai.com.br | Nutricionista | Usuária |
 
-Demais usuários são cadastrados pela administradora. Destinatários de relatórios
+Demais usuários são cadastrados pelos administradores. Destinatários de relatórios
 existem apenas em **Destinatários dos Relatórios** e não são contas do sistema.
 
 Seed no Firebase Auth + Firestore:

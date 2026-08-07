@@ -6,6 +6,7 @@ export interface QueuedEmail {
   id: string;
   payload: {
     auditId: string;
+    reportId: string;
     auditCode: string;
     subject: string;
     body: string;
@@ -19,6 +20,8 @@ export interface QueuedEmail {
       mimeType: 'application/pdf';
       base64: string;
       sizeBytes: number;
+      auditId?: string;
+      reportId?: string;
     };
     sentByUserId: string;
     sentByName: string;

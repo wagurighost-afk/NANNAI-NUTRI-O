@@ -213,6 +213,8 @@ export interface Audit {
   updatedAt: string;
   /** Status do envio do relatório PDF após finalização */
   reportSendStatus?: ReportSendStatus;
+  /** ID estável do PDF vinculado (auditId → reportId → pdfFile) */
+  reportId?: string;
   pdfFileName?: string;
   pdfSizeBytes?: number;
 }
@@ -390,6 +392,8 @@ export interface EmailSendRecord {
   id: string;
   auditId: string;
   auditCode: string;
+  /** PDF automaticamente vinculado ao envio */
+  reportId?: string;
   unitName: string;
   sectorName: string;
   subject: string;

@@ -42,6 +42,16 @@ export function downloadPdfAttachment(attachment: AuditPdfAttachment): void {
   window.setTimeout(() => URL.revokeObjectURL(url), 1500);
 }
 
+/** Abre o PDF vinculado em nova aba (visualizar) */
+export function openPdfAttachment(attachment: AuditPdfAttachment): void {
+  const blob =
+    attachment.blob ??
+    base64ToBlob(attachment.base64, attachment.mimeType || 'application/pdf');
+  const url = URL.createObjectURL(blob);
+  window.open(url, '_blank', 'noopener,noreferrer');
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
 function base64ToBlob(base64: string, mimeType: string): Blob {
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);

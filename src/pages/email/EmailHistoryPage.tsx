@@ -11,7 +11,10 @@ import {
   queueOrSendReport,
   type SendReportPayload,
 } from '../../services/emailService';
-import { generateAuditPdfAttachment } from '../../services/pdfReport';
+import {
+  auditPdfMetaPatch,
+  ensureBoundAuditReportPdf,
+} from '../../services/auditReportBinding';
 import type { EmailSendStatus } from '../../types';
 
 const statusLabels: Record<EmailSendStatus, string> = {
@@ -38,6 +41,7 @@ export function EmailHistoryPage() {
   const audits = useAppStore((s) => s.audits);
   const questionnaire = useAppStore((s) => s.questionnaire);
   const actionPlans = useAppStore((s) => s.actionPlans);
+  const updateAudit = useAppStore((s) => s.updateAudit);
   const online = useAppStore((s) => s.online);
   const user = useAuthStore((s) => s.user);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -60,11 +64,12 @@ export function EmailHistoryPage() {
     updateHistoryRecord(recordId, { status: 'preparando' });
 
     try {
-      const attachment = await generateAuditPdfAttachment(
+      const { attachment, reportId } = await ensureBoundAuditReportPdf({
         audit,
         questionnaire,
-        actionPlans.filter((p) => p.auditId === audit.id),
-      );
+        actionPlans: actionPlans.filter((p) => p.auditId === audit.id),
+      });
+      updateAudit(audit.id, auditPdfMetaPatch(attachment, reportId));
 
       const to = record.recipients.filter((r) => r.type === 'to');
       const cc = record.recipients.filter((r) => r.type === 'cc');
@@ -72,6 +77,7 @@ export function EmailHistoryPage() {
 
       const payload: SendReportPayload = {
         auditId: audit.id,
+        reportId,
         auditCode: audit.code,
         subject: record.subject,
         body: record.body,
@@ -88,6 +94,9 @@ export function EmailHistoryPage() {
       const result = await queueOrSendReport(payload, online);
       updateHistoryRecord(recordId, {
         ...result.recordPatch,
+        reportId,
+        pdfFileName: attachment.fileName,
+        pdfSizeBytes: attachment.sizeBytes,
         attempts: record.attempts + 1,
         status:
           result.recordPatch.status === 'aguardando_conexao'

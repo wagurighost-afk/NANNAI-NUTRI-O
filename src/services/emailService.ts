@@ -13,6 +13,7 @@ import {
 
 export interface SendReportPayload {
   auditId: string;
+  reportId: string;
   auditCode: string;
   subject: string;
   body: string;
@@ -21,6 +22,7 @@ export interface SendReportPayload {
   bcc: EmailRecipientSnapshot[];
   copyToSelf: boolean;
   selfEmail?: string;
+  /** PDF já vinculado — o backend também pode carregar por auditId/reportId */
   attachment: AuditPdfAttachment;
   sentByUserId: string;
   sentByName: string;
@@ -44,6 +46,10 @@ export function validateSendPayload(
   }
   if (!payload.subject.trim()) errors.push('Informe o assunto do e-mail.');
   if (!payload.body.trim()) errors.push('Informe a mensagem do e-mail.');
+  if (!payload.auditId) errors.push('Auditoria não identificada.');
+  if (!payload.reportId) {
+    errors.push('Relatório PDF não está vinculado à auditoria.');
+  }
 
   const all = [...payload.to, ...payload.cc, ...payload.bcc];
   if (payload.copyToSelf && payload.selfEmail) {
@@ -66,16 +72,23 @@ export function validateSendPayload(
 
   if (!payload.attachment) {
     errors.push('O arquivo PDF do relatório não foi gerado.');
-  } else if (payload.attachment.sizeBytes <= 0) {
-    errors.push('O arquivo PDF está vazio.');
-  } else if (payload.attachment.sizeBytes > MAX_PDF_BYTES) {
-    errors.push(
-      `O anexo excede o limite de ${Math.round(MAX_PDF_BYTES / (1024 * 1024))} MB.`,
-    );
-  }
-
-  if (!options.online) {
-    // Offline is allowed — will queue; not a hard error
+  } else {
+    if (payload.attachment.mimeType !== 'application/pdf') {
+      errors.push('O anexo vinculado não é um PDF válido.');
+    }
+    if (
+      payload.attachment.auditId &&
+      payload.attachment.auditId !== payload.auditId
+    ) {
+      errors.push('O PDF não pertence à auditoria selecionada.');
+    }
+    if (payload.attachment.sizeBytes <= 0) {
+      errors.push('O arquivo PDF está vazio.');
+    } else if (payload.attachment.sizeBytes > MAX_PDF_BYTES) {
+      errors.push(
+        `O anexo excede o limite de ${Math.round(MAX_PDF_BYTES / (1024 * 1024))} MB.`,
+      );
+    }
   }
 
   return { ok: errors.length === 0, errors };
@@ -85,15 +98,16 @@ export interface BackendSendResult {
   status: EmailSendStatus;
   message: string;
   providerMessageId?: string;
+  pdfFileName?: string;
   errors: string[];
 }
 
 /**
- * Calls the secure backend endpoint (Firebase Cloud Function / Resend / SES).
- * Credentials NEVER leave the server — only the callable HTTPS endpoint is used.
+ * POST /api/reports/send-email (via VITE_EMAIL_API_URL)
  *
- * Env: VITE_EMAIL_API_URL — Cloud Function URL or API gateway.
- * When unset, uses a safe mock that simulates success (dev mode).
+ * Envia auditId + reportId + destinatários.
+ * O backend localiza o PDF vinculado e anexa automaticamente (Microsoft Graph / Resend).
+ * contentBase64 só vai como fallback quando o Storage ainda não tem o arquivo.
  */
 export async function sendReportViaBackend(
   payload: SendReportPayload,
@@ -102,31 +116,34 @@ export async function sendReportViaBackend(
 
   const body = {
     auditId: payload.auditId,
+    reportId: payload.reportId,
     auditCode: payload.auditCode,
     subject: payload.subject,
+    message: payload.body,
     body: payload.body,
     to: payload.to.map((r) => ({ name: r.name, email: r.email })),
     cc: payload.cc.map((r) => ({ name: r.name, email: r.email })),
     bcc: payload.bcc.map((r) => ({ name: r.name, email: r.email })),
     copyToSelf: payload.copyToSelf,
     selfEmail: payload.selfEmail,
-    attachment: {
+    sentByUserId: payload.sentByUserId,
+    sentByName: payload.sentByName,
+    // Fallback seguro: bytes do PDF já vinculado (não vem de file picker)
+    attachmentFallback: {
       fileName: payload.attachment.fileName,
       mimeType: payload.attachment.mimeType,
       contentBase64: payload.attachment.base64,
       sizeBytes: payload.attachment.sizeBytes,
     },
-    sentByUserId: payload.sentByUserId,
-    sentByName: payload.sentByName,
   };
 
   if (!apiUrl) {
     return {
       status: 'falha',
       message:
-        'Envio pelo servidor não configurado. Use “Abrir no e-mail” ou “Compartilhar PDF”.',
+        'Envio automático pelo Microsoft 365 não configurado. Use “Compartilhar PDF” para abrir o Outlook com o anexo.',
       errors: [
-        'Configure VITE_EMAIL_API_URL para envio automático pelo servidor NANNAI.',
+        'Configure VITE_EMAIL_API_URL para envio automático com anexo via Microsoft Graph.',
       ],
     };
   }
@@ -142,6 +159,7 @@ export async function sendReportViaBackend(
       providerMessageId?: string;
       errors?: string[];
       status?: EmailSendStatus;
+      pdfFileName?: string;
     };
     if (!res.ok) {
       return {
@@ -152,8 +170,9 @@ export async function sendReportViaBackend(
     }
     return {
       status: data.status ?? 'enviado',
-      message: data.message ?? 'Relatório enviado com sucesso.',
+      message: data.message ?? 'Relatório enviado com o PDF anexado.',
       providerMessageId: data.providerMessageId,
+      pdfFileName: data.pdfFileName,
       errors: data.errors ?? [],
     };
   } catch (err) {
@@ -182,6 +201,8 @@ export async function queueOrSendReport(
           mimeType: payload.attachment.mimeType,
           base64: payload.attachment.base64,
           sizeBytes: payload.attachment.sizeBytes,
+          auditId: payload.auditId,
+          reportId: payload.reportId,
         },
       },
       createdAt: new Date().toISOString(),
@@ -189,11 +210,15 @@ export async function queueOrSendReport(
     return {
       recordPatch: {
         status: 'aguardando_conexao',
+        reportId: payload.reportId,
+        pdfFileName: payload.attachment.fileName,
+        pdfSizeBytes: payload.attachment.sizeBytes,
         queuedOffline: true,
         attempts: 1,
         errors: [],
       },
-      userMessage: 'Relatório aguardando conexão para ser enviado.',
+      userMessage:
+        'Relatório aguardando conexão. O PDF permanecerá anexado automaticamente.',
     };
   }
 
@@ -201,6 +226,9 @@ export async function queueOrSendReport(
   return {
     recordPatch: {
       status: result.status,
+      reportId: payload.reportId,
+      pdfFileName: result.pdfFileName ?? payload.attachment.fileName,
+      pdfSizeBytes: payload.attachment.sizeBytes,
       sentAt:
         result.status === 'enviado' || result.status === 'parcialmente_enviado'
           ? new Date().toISOString()
@@ -224,6 +252,10 @@ export async function flushQueuedEmails(
     onProgress?.(`Enviando relatório ${item.payload.auditCode}…`);
     const result = await sendReportViaBackend({
       ...item.payload,
+      reportId:
+        item.payload.reportId ||
+        item.payload.attachment.reportId ||
+        `rpt-${item.payload.auditId}`,
       attachment: {
         ...item.payload.attachment,
         blob: new Blob([], { type: 'application/pdf' }),

@@ -67,28 +67,36 @@ src/
 
 ## Envio de relatórios por e-mail
 
-Após gerar o PDF de uma auditoria concluída, gestores/nutricionistas/admins podem
-usar **Enviar relatório por e-mail**.
+Após finalizar a auditoria, o PDF é gerado, salvo e **vinculado automaticamente**
+(`auditId → reportId → pdf`). Na tela de envio o anexo já aparece pronto — a
+nutricionista só escolhe destinatários e confirma. Não há file picker.
 
-- Destinatários cadastrados pela administradora em **Destinatários dos Relatórios**
+Nome do arquivo: `Relatorio_Auditoria_[SETOR]_[DD-MM-YYYY].pdf`
+
+- Destinatários em **Destinatários dos Relatórios**
 - CC / CCO, cópia para si, temporários e permanentes
-- Regras automáticas por unidade, setor, pontuação e NC crítica
-- Histórico com reenvio
-- Offline: fila IndexedDB + mensagem “Relatório aguardando conexão…”
+- Reenvio reutiliza o mesmo PDF vinculado
+- Offline: fila IndexedDB com o PDF anexado
 
-**Segurança:** o navegador NÃO envia e-mail com senhas. Use Cloud Function:
+**API (Cloud Function):** `POST` via `VITE_EMAIL_API_URL` com
+`{ auditId, reportId, to, cc, bcc, subject, message }`. O backend localiza o PDF
+no Storage, valida e anexa no Microsoft Graph (ou Resend).
 
 ```bash
 # functions/.env
-EMAIL_PROVIDER=resend
-RESEND_API_KEY=re_xxx
+EMAIL_PROVIDER=microsoft_graph
 EMAIL_FROM=NANNAI Nutrição <relatorios@nannai.com.br>
+MS_GRAPH_TENANT_ID=
+MS_GRAPH_CLIENT_ID=
+MS_GRAPH_CLIENT_SECRET=
+MS_GRAPH_SENDER=relatorios@nannai.com.br
+# opcional: EMAIL_PROVIDER=resend + RESEND_API_KEY=
 
 # .env (frontend)
 VITE_EMAIL_API_URL=https://REGION-PROJECT.cloudfunctions.net/sendAuditReportEmail
 ```
 
-Stub: `functions/sendAuditReportEmail.js`
+Implementação: `functions/sendAuditReportEmail.js`
 
 ## Contas iniciais
 

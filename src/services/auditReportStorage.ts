@@ -3,6 +3,7 @@ import type { AuditPdfAttachment } from './pdfReport';
 
 export interface StoredAuditReport {
   auditId: string;
+  reportId: string;
   fileName: string;
   mimeType: 'application/pdf';
   base64: string;
@@ -18,7 +19,7 @@ interface ReportDB extends DBSchema {
 }
 
 const DB_NAME = 'nannai-audit-reports';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let dbPromise: Promise<IDBPDatabase<ReportDB>> | null = null;
 
@@ -35,12 +36,47 @@ function getDb() {
   return dbPromise;
 }
 
+function attachmentFromRecord(record: StoredAuditReport): AuditPdfAttachment {
+  const binary = atob(record.base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return {
+    fileName: record.fileName,
+    mimeType: 'application/pdf',
+    base64: record.base64,
+    sizeBytes: record.sizeBytes,
+    blob: new Blob([bytes], { type: 'application/pdf' }),
+    auditId: record.auditId,
+    reportId: record.reportId,
+  };
+}
+
+/**
+ * Salva o PDF vinculado à auditoria.
+ * O caminho interno nunca é escolhido pelo usuário — só auditId/reportId.
+ */
 export async function saveAuditReportPdf(
   auditId: string,
   attachment: AuditPdfAttachment,
+  reportId?: string,
 ): Promise<StoredAuditReport> {
+  const resolvedReportId =
+    reportId || attachment.reportId || `rpt-${auditId}`;
+  if (attachment.auditId && attachment.auditId !== auditId) {
+    throw new Error('PDF não pertence à auditoria selecionada.');
+  }
+  if (!attachment.fileName.toLowerCase().endsWith('.pdf')) {
+    throw new Error('O arquivo vinculado deve ser um PDF.');
+  }
+  if (attachment.mimeType !== 'application/pdf') {
+    throw new Error('Tipo de arquivo inválido para o relatório.');
+  }
+
   const record: StoredAuditReport = {
     auditId,
+    reportId: resolvedReportId,
     fileName: attachment.fileName,
     mimeType: 'application/pdf',
     base64: attachment.base64,
@@ -57,19 +93,25 @@ export async function getAuditReportPdf(
 ): Promise<AuditPdfAttachment | null> {
   const db = await getDb();
   const record = await db.get('auditReports', auditId);
-  if (!record) return null;
-  const binary = atob(record.base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) {
-    bytes[i] = binary.charCodeAt(i);
+  if (!record?.base64) return null;
+  if (record.auditId !== auditId) return null;
+  if (record.mimeType !== 'application/pdf') return null;
+  return attachmentFromRecord({
+    ...record,
+    reportId: record.reportId || `rpt-${auditId}`,
+  });
+}
+
+export async function getAuditReportByIds(
+  auditId: string,
+  reportId: string,
+): Promise<AuditPdfAttachment | null> {
+  const attachment = await getAuditReportPdf(auditId);
+  if (!attachment) return null;
+  if (attachment.reportId && attachment.reportId !== reportId) {
+    return null;
   }
-  return {
-    fileName: record.fileName,
-    mimeType: 'application/pdf',
-    base64: record.base64,
-    sizeBytes: record.sizeBytes,
-    blob: new Blob([bytes], { type: 'application/pdf' }),
-  };
+  return attachment;
 }
 
 export async function openAuditReportPdf(auditId: string): Promise<boolean> {

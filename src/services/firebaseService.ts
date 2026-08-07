@@ -211,6 +211,64 @@ export async function uploadEvidenceBlob(
   return getDownloadURL(storageRef);
 }
 
+/**
+ * Publica o PDF da auditoria no Storage + metadados no Firestore.
+ * Caminho interno fixo: audit-reports/{auditId}/{reportId}.pdf
+ * O cliente nunca envia um path escolhido pelo usuário.
+ */
+export async function uploadAuditReportPdfRemote(params: {
+  auditId: string;
+  reportId: string;
+  attachment: {
+    fileName: string;
+    mimeType: string;
+    base64: string;
+    sizeBytes: number;
+    blob?: Blob;
+  };
+}): Promise<{ storagePath: string } | null> {
+  if (!isFirebaseEnabled) return null;
+  const { auditId, reportId, attachment } = params;
+  if (!auditId || !reportId) return null;
+  if (attachment.mimeType !== 'application/pdf') return null;
+
+  const storage = getFirebaseStorage();
+  const db = getFirestoreDb();
+  if (!storage || !db) return null;
+
+  const storagePath = `audit-reports/${auditId}/${reportId}.pdf`;
+  const blob =
+    attachment.blob ??
+    (() => {
+      const binary = atob(attachment.base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i += 1) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      return new Blob([bytes], { type: 'application/pdf' });
+    })();
+
+  const { ref, uploadBytes } = await import('firebase/storage');
+  const { doc, setDoc } = await import('firebase/firestore');
+  await uploadBytes(ref(storage, storagePath), blob, {
+    contentType: 'application/pdf',
+  });
+  await setDoc(
+    doc(db, 'auditReports', reportId),
+    {
+      reportId,
+      auditId,
+      fileName: attachment.fileName,
+      mimeType: 'application/pdf',
+      sizeBytes: attachment.sizeBytes,
+      storagePath,
+      updatedAt: new Date().toISOString(),
+    },
+    { merge: true },
+  );
+  return { storagePath };
+}
+
 export async function listUsersFromFirestore(): Promise<User[]> {
   if (!isFirebaseEnabled) return mockUsers;
   const { collection, getDocs } = await import('firebase/firestore');

@@ -7,6 +7,8 @@ import { Input } from '../../components/ui/Input';
 import { useAppStore } from '../../stores/appStore';
 import { computeAuditTotals } from '../../utils';
 import { saveAuditOffline } from '../../services/offlineDb';
+import { generateAuditPdfAttachment } from '../../services/pdfReport';
+import { saveAuditReportPdf } from '../../services/auditReportStorage';
 
 export function AuditClosingPage() {
   const { id } = useParams();
@@ -19,14 +21,19 @@ export function AuditClosingPage() {
     [allPlans, id],
   );
   const completeAudit = useAppStore((s) => s.completeAudit);
+  const updateAudit = useAppStore((s) => s.updateAudit);
 
   const [comment, setComment] = useState(audit?.generalComment ?? '');
   const [auditorName, setAuditorName] = useState(audit?.auditorName ?? '');
   const [responsibleName, setResponsibleName] = useState('');
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
   const auditorCanvas = useRef<HTMLCanvasElement>(null);
   const responsibleCanvas = useRef<HTMLCanvasElement>(null);
-  const drawing = useRef<{ canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } | null>(null);
+  const drawing = useRef<{
+    canvas: HTMLCanvasElement;
+    ctx: CanvasRenderingContext2D;
+  } | null>(null);
 
   if (!audit) return <Card>Auditoria não encontrada.</Card>;
 
@@ -68,40 +75,100 @@ export function AuditClosingPage() {
   };
 
   const finish = async () => {
+    setError('');
+    if (totals.pending > 0) {
+      setError(
+        `Há ${totals.pending} pergunta(s) obrigatória(s) sem resposta. Complete o questionário antes de finalizar.`,
+      );
+      return;
+    }
+    if (!auditorName.trim()) {
+      setError('Informe o nome do auditor.');
+      return;
+    }
+
     setSaving(true);
-    const now = new Date().toISOString();
-    completeAudit(audit.id, {
-      generalComment: comment,
-      auditorSignature: {
-        name: auditorName,
-        role: 'Auditor',
-        signedAt: now,
-        dataUrl: auditorCanvas.current?.toDataURL() ?? '',
-      },
-      responsibleSignature: {
-        name: responsibleName || 'Responsável',
-        role: 'Responsável pelo setor',
-        signedAt: now,
-        dataUrl: responsibleCanvas.current?.toDataURL() ?? '',
-      },
-    });
-    const latest = useAppStore.getState().audits.find((a) => a.id === audit.id);
-    if (latest) await saveAuditOffline(latest);
-    setSaving(false);
-    navigate(`/app/auditorias/${audit.id}?finalizada=1`);
+    try {
+      const now = new Date().toISOString();
+      completeAudit(audit.id, {
+        generalComment: comment,
+        auditorSignature: {
+          name: auditorName.trim(),
+          role: 'Auditor',
+          signedAt: now,
+          dataUrl: auditorCanvas.current?.toDataURL() ?? '',
+        },
+        responsibleSignature: {
+          name: responsibleName.trim() || 'Responsável',
+          role: 'Responsável pelo setor',
+          signedAt: now,
+          dataUrl: responsibleCanvas.current?.toDataURL() ?? '',
+        },
+      });
+
+      const latest = useAppStore.getState().audits.find((a) => a.id === audit.id);
+      if (!latest) throw new Error('Auditoria não encontrada após salvar.');
+
+      // Garante totais finais persistidos
+      const finalTotals = computeAuditTotals(latest.answers, questionnaire);
+      updateAudit(latest.id, {
+        score: finalTotals.score,
+        maxScore: finalTotals.maxScore,
+        conformityPercent: finalTotals.conformityPercent,
+        reportSendStatus: 'aguardando_envio',
+      });
+
+      const refreshed =
+        useAppStore.getState().audits.find((a) => a.id === audit.id) ?? latest;
+
+      const pdf = await generateAuditPdfAttachment(
+        refreshed,
+        questionnaire,
+        actionPlans,
+      );
+      await saveAuditReportPdf(refreshed.id, pdf);
+      updateAudit(refreshed.id, {
+        pdfFileName: pdf.fileName,
+        pdfSizeBytes: pdf.sizeBytes,
+        reportSendStatus: 'aguardando_envio',
+      });
+
+      const saved =
+        useAppStore.getState().audits.find((a) => a.id === audit.id) ??
+        refreshed;
+      await saveAuditOffline(saved);
+
+      navigate(`/app/auditorias/${audit.id}/finalizada`, { replace: true });
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Falha ao finalizar e gerar o relatório PDF.',
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <div>
-      <PageHeader
-        title="Encerramento e assinaturas"
-        subtitle={audit.code}
-      />
+      <PageHeader title="Encerramento e assinaturas" subtitle={audit.code} />
+
+      {totals.pending > 0 && (
+        <p className="mb-4 rounded-xl border border-gold-200 bg-gold-50 px-3 py-2 text-sm text-gold-900">
+          Ainda há {totals.pending} pergunta(s) pendente(s). Todas as perguntas
+          obrigatórias precisam ser respondidas antes de finalizar.
+        </p>
+      )}
 
       <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Pontuação obtida" value={totals.score} accent="olive" />
         <StatCard label="Pontuação máxima" value={totals.maxScore} accent="gold" />
-        <StatCard label="% Conformidade" value={`${totals.conformityPercent}%`} accent="wine" />
+        <StatCard
+          label="% Conformidade"
+          value={`${totals.conformityPercent}%`}
+          accent="wine"
+        />
         <StatCard label="Planos gerados" value={actionPlans.length} accent="cream" />
       </div>
 
@@ -109,7 +176,7 @@ export function AuditClosingPage() {
         <StatCard label="Conformes" value={totals.conforme} />
         <StatCard label="Parciais" value={totals.parcial} accent="gold" />
         <StatCard label="Não conformes" value={totals.naoConforme} accent="wine" />
-        <StatCard label="N/A" value={totals.na} />
+        <StatCard label="Pendentes" value={totals.pending} accent="gold" />
       </div>
 
       <Card className="mb-4">
@@ -128,7 +195,9 @@ export function AuditClosingPage() {
             value={auditorName}
             onChange={(e) => setAuditorName(e.target.value)}
           />
-          <p className="mb-2 mt-4 text-sm font-medium text-ink">Assinatura do auditor</p>
+          <p className="mb-2 mt-4 text-sm font-medium text-ink">
+            Assinatura do auditor
+          </p>
           <canvas
             ref={auditorCanvas}
             width={360}
@@ -178,12 +247,23 @@ export function AuditClosingPage() {
         </Card>
       </div>
 
+      {error && (
+        <p className="mt-4 rounded-xl bg-wine-50 px-3 py-2 text-sm text-wine-700">
+          {error}
+        </p>
+      )}
+
       <div className="mt-6 flex flex-wrap gap-2">
-        <Button onClick={finish} disabled={saving}>
-          {saving ? 'Finalizando…' : 'Finalizar auditoria'}
+        <Button onClick={finish} disabled={saving || totals.pending > 0}>
+          {saving
+            ? 'Finalizando e gerando PDF…'
+            : 'Finalizar auditoria'}
         </Button>
-        <Button variant="outline" onClick={() => navigate(-1)}>
-          Voltar
+        <Button
+          variant="outline"
+          onClick={() => navigate(`/app/auditorias/${audit.id}/resumo`)}
+        >
+          Voltar ao resumo
         </Button>
       </div>
     </div>

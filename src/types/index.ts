@@ -180,6 +180,12 @@ export interface Signature {
   dataUrl: string;
 }
 
+export type ReportSendStatus =
+  | 'aguardando_envio'
+  | 'enviado'
+  | 'parcialmente_enviado'
+  | 'falha';
+
 export interface Audit {
   id: string;
   code: string;
@@ -205,6 +211,10 @@ export interface Audit {
   conformityPercent: number;
   syncStatus: SyncStatus;
   updatedAt: string;
+  /** Status do envio do relatório PDF após finalização */
+  reportSendStatus?: ReportSendStatus;
+  pdfFileName?: string;
+  pdfSizeBytes?: number;
 }
 
 export interface ActionPlan {

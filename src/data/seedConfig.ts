@@ -8,7 +8,7 @@ import type {
 import { permissionsFor } from '../utils/permissions';
 import { nutrisanoQuestionnaire } from './nutrisanoQuestionnaire';
 
-export const SEED_VERSION = 3;
+export const SEED_VERSION = 4;
 export const SEED_GROUP_ID = 'grp-gestao-nutricao';
 
 export const SEED_UNIT_ID = 'unit-nannai-muro-alto';
@@ -135,16 +135,16 @@ export function buildSeedFounderAdmins(unitId: string): User[] {
   ];
 }
 
-/** Usuária / nutricionista (sem perfil de administrador) */
+/** Renata Fernanda — nutricionista e administradora ativa */
 export function buildSeedNutritionist(unitId: string): User {
   return {
     id: SEED_NUTRITIONIST_ID,
     uid: SEED_NUTRITIONIST_ID,
     name: 'Renata Fernanda',
     email: 'renata.fernanda@nannai.com.br',
-    role: 'auditor',
+    role: 'admin',
     professionalRole: 'Nutricionista',
-    permissions: permissionsFor('auditor', 'Nutricionista'),
+    permissions: permissionsFor('admin', 'Nutricionista'),
     unitIds: [unitId],
     sectorIds: [],
     active: true,
@@ -154,7 +154,7 @@ export function buildSeedNutritionist(unitId: string): User {
   };
 }
 
-/** Contas iniciais: 2 admins fundadores + nutricionista */
+/** Contas iniciais: admins fundadores + Renata (nutricionista/admin) */
 export function buildSeedUsers(unitId: string): User[] {
   return [...buildSeedFounderAdmins(unitId), buildSeedNutritionist(unitId)];
 }

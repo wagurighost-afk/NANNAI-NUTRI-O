@@ -70,7 +70,7 @@ function seedAppData(): void {
     }
   }
 
-  // Contas iniciais: David e Mauro (admins fundadores) + Renata (nutricionista)
+  // Contas iniciais: David e Mauro (admins fundadores) + Renata (nutricionista/admin)
   const seedUsers = buildSeedUsers(unitId);
   const nowIso = new Date().toISOString();
 

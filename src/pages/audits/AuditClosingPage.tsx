@@ -7,8 +7,10 @@ import { Input } from '../../components/ui/Input';
 import { useAppStore } from '../../stores/appStore';
 import { computeAuditTotals } from '../../utils';
 import { saveAuditOffline } from '../../services/offlineDb';
-import { generateAuditPdfAttachment } from '../../services/pdfReport';
-import { saveAuditReportPdf } from '../../services/auditReportStorage';
+import {
+  auditPdfMetaPatch,
+  ensureBoundAuditReportPdf,
+} from '../../services/auditReportBinding';
 
 export function AuditClosingPage() {
   const { id } = useParams();
@@ -121,15 +123,14 @@ export function AuditClosingPage() {
       const refreshed =
         useAppStore.getState().audits.find((a) => a.id === audit.id) ?? latest;
 
-      const pdf = await generateAuditPdfAttachment(
-        refreshed,
+      const { attachment, reportId } = await ensureBoundAuditReportPdf({
+        audit: refreshed,
         questionnaire,
         actionPlans,
-      );
-      await saveAuditReportPdf(refreshed.id, pdf);
+        forceRegenerate: true,
+      });
       updateAudit(refreshed.id, {
-        pdfFileName: pdf.fileName,
-        pdfSizeBytes: pdf.sizeBytes,
+        ...auditPdfMetaPatch(attachment, reportId),
         reportSendStatus: 'aguardando_envio',
       });
 

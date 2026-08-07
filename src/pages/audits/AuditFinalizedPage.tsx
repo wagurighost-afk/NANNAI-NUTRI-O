@@ -19,14 +19,13 @@ import {
 import { canSendReportEmail, hasCriticalNonConformity } from '../../utils/email';
 import {
   generateAuditPdf,
-  generateAuditPdfAttachment,
   type AuditPdfAttachment,
 } from '../../services/pdfReport';
+import { openAuditReportPdf } from '../../services/auditReportStorage';
 import {
-  getAuditReportPdf,
-  openAuditReportPdf,
-  saveAuditReportPdf,
-} from '../../services/auditReportStorage';
+  auditPdfMetaPatch,
+  ensureBoundAuditReportPdf,
+} from '../../services/auditReportBinding';
 import { downloadPdfAttachment } from '../../utils/reportDelivery';
 import { SendReportModal } from '../../components/email/SendReportModal';
 
@@ -78,20 +77,15 @@ export function AuditFinalizedPage() {
     (async () => {
       setBusy(true);
       try {
-        let pdf = await getAuditReportPdf(audit.id);
-        if (!pdf) {
-          pdf = await generateAuditPdfAttachment(
-            audit,
-            questionnaire,
-            actionPlans,
-          );
-          await saveAuditReportPdf(audit.id, pdf);
-          updateAudit(audit.id, {
-            pdfFileName: pdf.fileName,
-            pdfSizeBytes: pdf.sizeBytes,
-            reportSendStatus: audit.reportSendStatus ?? 'aguardando_envio',
-          });
-        }
+        const { attachment: pdf, reportId } = await ensureBoundAuditReportPdf({
+          audit,
+          questionnaire,
+          actionPlans,
+        });
+        updateAudit(audit.id, {
+          ...auditPdfMetaPatch(pdf, reportId),
+          reportSendStatus: audit.reportSendStatus ?? 'aguardando_envio',
+        });
         if (!cancelled) {
           setAttachment(pdf);
           if (
@@ -134,16 +128,12 @@ export function AuditFinalizedPage() {
     if (attachment) return attachment;
     setBusy(true);
     try {
-      const pdf = await generateAuditPdfAttachment(
+      const { attachment: pdf, reportId } = await ensureBoundAuditReportPdf({
         audit,
         questionnaire,
         actionPlans,
-      );
-      await saveAuditReportPdf(audit.id, pdf);
-      updateAudit(audit.id, {
-        pdfFileName: pdf.fileName,
-        pdfSizeBytes: pdf.sizeBytes,
       });
+      updateAudit(audit.id, auditPdfMetaPatch(pdf, reportId));
       setAttachment(pdf);
       return pdf;
     } finally {

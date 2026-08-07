@@ -3,10 +3,9 @@ import {
   AlertTriangle,
   CheckSquare,
   Copy,
-  ExternalLink,
-  FileDown,
+  Eye,
+  FileText,
   Mail,
-  Paperclip,
   Plus,
   Share2,
   Square,
@@ -27,23 +26,23 @@ import {
   canSendReportEmail,
   isValidEmail,
 } from '../../utils/email';
-import {
-  generateAuditPdfAttachment,
-  type AuditPdfAttachment,
-} from '../../services/pdfReport';
+import type { AuditPdfAttachment } from '../../services/pdfReport';
 import {
   queueOrSendReport,
   validateSendPayload,
 } from '../../services/emailService';
+import {
+  auditPdfMetaPatch,
+  ensureBoundAuditReportPdf,
+  resolveReportId,
+} from '../../services/auditReportBinding';
 import { useAppStore } from '../../stores/appStore';
 import {
   copyEmailsToClipboard,
-  downloadPdfAttachment,
   isEmailApiConfigured,
-  openMailtoCompose,
+  openPdfAttachment,
   sharePdfAttachment,
 } from '../../utils/reportDelivery';
-import { getAuditReportPdf } from '../../services/auditReportStorage';
 import { formatDate } from '../../utils';
 
 type RecipientLane = 'to' | 'cc' | 'bcc';
@@ -76,7 +75,11 @@ export function SendReportModal({
   const addHistoryRecord = useEmailStore((s) => s.addHistoryRecord);
   const updateHistoryRecord = useEmailStore((s) => s.updateHistoryRecord);
   const online = useAppStore((s) => s.online);
+  const updateAudit = useAppStore((s) => s.updateAudit);
   const serverEmailReady = isEmailApiConfigured();
+  const [reportId, setReportId] = useState(
+    resolveReportId(audit.id, audit.reportId),
+  );
 
   const activeRecipients = useMemo(
     () => recipients.filter((r) => r.active),
@@ -143,26 +146,34 @@ export function SendReportModal({
 
     let cancelled = false;
     (async () => {
-      if (initialAttachment) {
-        setAttachment(initialAttachment);
-        setPreparingPdf(false);
-        return;
-      }
       setPreparingPdf(true);
       try {
-        const stored = await getAuditReportPdf(audit.id);
-        if (stored && !cancelled) {
-          setAttachment(stored);
-          return;
-        }
-        const pdf = await generateAuditPdfAttachment(
+        const bound = await ensureBoundAuditReportPdf({
           audit,
           questionnaire,
           actionPlans,
-        );
-        if (!cancelled) setAttachment(pdf);
+          forceRegenerate: false,
+        });
+        if (cancelled) return;
+        // Se o caller passou um anexo já vinculado à mesma auditoria, prioriza
+        const next =
+          initialAttachment &&
+          (!initialAttachment.auditId ||
+            initialAttachment.auditId === audit.id)
+            ? {
+                ...initialAttachment,
+                auditId: audit.id,
+                reportId: bound.reportId,
+              }
+            : bound.attachment;
+        setAttachment(next);
+        setReportId(bound.reportId);
+        updateAudit(audit.id, {
+          ...auditPdfMetaPatch(next, bound.reportId),
+          reportSendStatus: audit.reportSendStatus ?? 'aguardando_envio',
+        });
       } catch {
-        if (!cancelled) setErrors(['Falha ao gerar o PDF do relatório.']);
+        if (!cancelled) setErrors(['Falha ao vincular o PDF do relatório.']);
       } finally {
         if (!cancelled) setPreparingPdf(false);
       }
@@ -172,7 +183,7 @@ export function SendReportModal({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, audit.id, initialAttachment]);
+  }, [open, audit.id]);
 
   const toggle = (id: string) => {
     setSelectedIds((prev) => {
@@ -279,8 +290,13 @@ export function SendReportModal({
       push({ name: t.name, email: t.email, type: t.lane });
     }
 
+    const linkedReportId = resolveReportId(
+      audit.id,
+      reportId || attachment?.reportId || audit.reportId,
+    );
     return {
       auditId: audit.id,
+      reportId: linkedReportId,
       auditCode: audit.code,
       subject,
       body,
@@ -289,7 +305,13 @@ export function SendReportModal({
       bcc,
       copyToSelf,
       selfEmail: user?.email,
-      attachment,
+      attachment: attachment
+        ? {
+            ...attachment,
+            auditId: audit.id,
+            reportId: linkedReportId,
+          }
+        : null,
       sentByUserId: user?.id ?? '',
       sentByName: user?.name ?? '',
     };
@@ -320,6 +342,7 @@ export function SendReportModal({
     addHistoryRecord({
       id: recordId,
       auditId: audit.id,
+      reportId: payload.reportId,
       auditCode: audit.code,
       unitName: audit.unitName,
       sectorName: audit.sectorName,
@@ -341,36 +364,12 @@ export function SendReportModal({
     });
     setFeedback(message);
     if (status === 'enviado' || status === 'aguardando_conexao') {
+      updateAudit(audit.id, { reportSendStatus: 'enviado' });
       onSent?.();
     }
   };
 
-  const sendViaMailto = () => {
-    const payload = requireReadyPayload();
-    if (!payload?.attachment) return;
-    downloadPdfAttachment(payload.attachment);
-    const cc = [...payload.cc];
-    if (payload.copyToSelf && payload.selfEmail) {
-      cc.push({
-        name: payload.sentByName,
-        email: payload.selfEmail,
-        type: 'cc',
-      });
-    }
-    openMailtoCompose({
-      to: payload.to,
-      cc,
-      bcc: payload.bcc,
-      subject: payload.subject,
-      body: `${payload.body}\n\n(Anexe o PDF baixado: ${payload.attachment.fileName})\n\n— NANNAI Nutrição · Outlook / Microsoft 365`,
-    });
-    logDelivery(
-      payload,
-      'enviado',
-      `PDF baixado e Outlook/e-mail aberto com ${payload.to.length} destinatário(s) em PARA. Anexe o PDF antes de enviar.`,
-    );
-  };
-
+  /** Envia com o PDF já anexado (Web Share / Outlook app) — sem file picker */
   const sendViaShare = async () => {
     const payload = requireReadyPayload();
     if (!payload?.attachment) return;
@@ -378,18 +377,20 @@ export function SendReportModal({
     try {
       const result = await sharePdfAttachment(payload.attachment, {
         title: `Relatório ${audit.code}`,
-        text: `${audit.unitName} · ${audit.sectorName} · ${subject}`,
+        text: `${payload.subject}\n\n${payload.body}`,
       });
       logDelivery(
         payload,
         'enviado',
         result === 'shared'
-          ? 'PDF compartilhado. Escolha o aplicativo (Outlook, WhatsApp etc.).'
-          : 'PDF baixado. Envie o arquivo aos destinatários.',
+          ? `PDF anexado automaticamente. Escolha o Outlook / Microsoft 365 para enviar a ${payload.to.length} destinatário(s).`
+          : `PDF pronto (${payload.attachment.fileName}). Abra o Outlook e o arquivo já está disponível para envio.`,
       );
     } catch (err) {
       setErrors([
-        err instanceof Error ? err.message : 'Não foi possível compartilhar.',
+        err instanceof Error
+          ? err.message
+          : 'Não foi possível abrir o envio com o PDF anexado.',
       ]);
     } finally {
       setSending(false);
@@ -426,6 +427,7 @@ export function SendReportModal({
     addHistoryRecord({
       id: recordId,
       auditId: audit.id,
+      reportId: payload.reportId,
       auditCode: audit.code,
       unitName: audit.unitName,
       sectorName: audit.sectorName,
@@ -458,6 +460,15 @@ export function SendReportModal({
         result.recordPatch.status === 'enviado' ||
         result.recordPatch.status === 'aguardando_conexao'
       ) {
+        updateAudit(audit.id, {
+          reportSendStatus:
+            result.recordPatch.status === 'enviado'
+              ? 'enviado'
+              : 'aguardando_envio',
+          reportId: payload.reportId,
+          pdfFileName: payload.attachment.fileName,
+          pdfSizeBytes: payload.attachment.sizeBytes,
+        });
         onSent?.();
         setTimeout(() => onClose(), 1400);
       } else if (result.recordPatch.errors?.length) {
@@ -505,13 +516,53 @@ export function SendReportModal({
               <p className="text-ink-muted">
                 Resultado: {audit.conformityPercent}% de conformidade
               </p>
-              <p className="mt-2 inline-flex items-center gap-1.5 text-olive-800">
-                <Paperclip size={14} />
-                Anexo:{' '}
-                {preparingPdf
-                  ? 'Preparando PDF…'
-                  : attachment?.fileName ?? audit.pdfFileName ?? '—'}
+            </div>
+
+            <div className="rounded-xl border border-olive-200 bg-olive-50/70 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-olive-800">
+                Anexo
               </p>
+              <div className="mt-2 flex items-start gap-3">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-white text-olive-700 shadow-sm">
+                  <FileText size={20} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-ink">
+                    Relatório da Auditoria
+                  </p>
+                  <p className="mt-0.5 break-all font-mono text-xs text-ink-muted">
+                    {preparingPdf
+                      ? 'Vinculando PDF automaticamente…'
+                      : attachment?.fileName ??
+                        audit.pdfFileName ??
+                        'PDF indisponível'}
+                  </p>
+                  <p className="mt-1 text-xs text-ink-muted">
+                    Tamanho:{' '}
+                    {preparingPdf
+                      ? '—'
+                      : attachment
+                        ? `${Math.max(1, Math.round(attachment.sizeBytes / 1024))} KB`
+                        : '—'}
+                  </p>
+                  <p className="mt-1 text-xs text-olive-800">
+                    PDF anexado automaticamente a este envio. Não é necessário
+                    procurar ou selecionar o arquivo.
+                  </p>
+                </div>
+              </div>
+              {attachment && !preparingPdf && (
+                <div className="mt-3">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => openPdfAttachment(attachment)}
+                  >
+                    <Eye size={14} /> Visualizar
+                  </Button>
+                </div>
+              )}
             </div>
 
             {auto.criticalAlert && (
@@ -707,29 +758,8 @@ export function SendReportModal({
                 checked={copyToSelf}
                 onChange={(e) => setCopyToSelf(e.target.checked)}
               />
-              Enviar cópia para mim ({user?.email}) — Outlook / Microsoft 365
+              Enviar cópia para mim ({user?.email})
             </label>
-
-            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-olive-200 bg-olive-50 px-3 py-2 text-sm text-olive-900">
-              <span className="inline-flex items-center gap-2">
-                <Paperclip size={16} />
-                {preparingPdf
-                  ? 'Preparando PDF…'
-                  : attachment
-                    ? `PDF pronto (${Math.round(attachment.sizeBytes / 1024)} KB)`
-                    : 'PDF não disponível'}
-              </span>
-              {attachment && (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => downloadPdfAttachment(attachment)}
-                >
-                  <FileDown size={14} /> Baixar PDF
-                </Button>
-              )}
-            </div>
 
             {errors.length > 0 && (
               <ul className="rounded-xl bg-wine-50 px-3 py-2 text-sm text-wine-700">
@@ -745,24 +775,31 @@ export function SendReportModal({
             )}
 
             <p className="text-sm font-medium text-ink">
-              Enviar o relatório em PDF
+              Enviar relatório por e-mail
             </p>
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid gap-2">
               <Button
-                onClick={sendViaMailto}
+                onClick={serverEmailReady ? sendViaServer : sendViaShare}
                 disabled={sending || preparingPdf || !attachment}
+                size="lg"
               >
-                <ExternalLink size={16} />
-                Enviar PDF por e-mail
+                <Mail size={16} />
+                {sending
+                  ? 'Enviando…'
+                  : serverEmailReady
+                    ? 'Confirmar envio (PDF anexado)'
+                    : 'Enviar com Outlook (PDF anexado)'}
               </Button>
-              <Button
-                variant="secondary"
-                onClick={sendViaShare}
-                disabled={sending || preparingPdf || !attachment}
-              >
-                <Share2 size={16} />
-                Compartilhar PDF
-              </Button>
+              {serverEmailReady && (
+                <Button
+                  variant="secondary"
+                  onClick={sendViaShare}
+                  disabled={sending || preparingPdf || !attachment}
+                >
+                  <Share2 size={16} />
+                  Abrir no Outlook com anexo
+                </Button>
+              )}
               <Button
                 variant="outline"
                 onClick={copySelectedEmails}
@@ -770,18 +807,6 @@ export function SendReportModal({
               >
                 <Copy size={16} />
                 Copiar e-mails
-              </Button>
-              <Button
-                variant={serverEmailReady ? 'primary' : 'outline'}
-                onClick={sendViaServer}
-                disabled={sending || preparingPdf || !attachment}
-              >
-                <Mail size={16} />
-                {sending
-                  ? 'Enviando PDF…'
-                  : serverEmailReady
-                    ? 'Enviar PDF pelo servidor'
-                    : 'Servidor (não configurado)'}
               </Button>
             </div>
 

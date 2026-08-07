@@ -212,13 +212,46 @@ export async function buildAuditPdfDoc(
   return doc;
 }
 
+/** Relatorio_Auditoria_[SETOR]_[DD-MM-YYYY].pdf */
+export function buildAuditReportFileName(audit: Audit): string {
+  const sector = sanitizeFileToken(audit.sectorName || 'Setor');
+  const date = formatFileDate(audit.completedAt ?? audit.startedAt);
+  return `Relatorio_Auditoria_${sector}_${date}.pdf`;
+}
+
+function sanitizeFileToken(value: string): string {
+  const cleaned = value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  return cleaned || 'Setor';
+}
+
+function formatFileDate(iso?: string): string {
+  const d = iso ? new Date(iso) : new Date();
+  if (Number.isNaN(d.getTime())) {
+    const now = new Date();
+    return [
+      String(now.getDate()).padStart(2, '0'),
+      String(now.getMonth() + 1).padStart(2, '0'),
+      String(now.getFullYear()),
+    ].join('-');
+  }
+  return [
+    String(d.getDate()).padStart(2, '0'),
+    String(d.getMonth() + 1).padStart(2, '0'),
+    String(d.getFullYear()),
+  ].join('-');
+}
+
 export async function generateAuditPdf(
   audit: Audit,
   questionnaire: Questionnaire,
   actionPlans: ActionPlan[],
 ) {
   const doc = await buildAuditPdfDoc(audit, questionnaire, actionPlans);
-  doc.save(`Relatorio_${audit.code}.pdf`);
+  doc.save(buildAuditReportFileName(audit));
 }
 
 export interface AuditPdfAttachment {
@@ -227,6 +260,9 @@ export interface AuditPdfAttachment {
   base64: string;
   sizeBytes: number;
   blob?: Blob;
+  /** Vincula o arquivo à auditoria — nunca escolhido pelo usuário */
+  reportId?: string;
+  auditId?: string;
 }
 
 export async function generateAuditPdfAttachment(
@@ -235,7 +271,7 @@ export async function generateAuditPdfAttachment(
   actionPlans: ActionPlan[],
 ): Promise<AuditPdfAttachment> {
   const doc = await buildAuditPdfDoc(audit, questionnaire, actionPlans);
-  const fileName = `Relatorio_${audit.code}.pdf`;
+  const fileName = buildAuditReportFileName(audit);
   const dataUri = doc.output('datauristring') as string;
   const base64 = dataUri.split(',')[1] ?? '';
   const blob = doc.output('blob') as Blob;
@@ -245,6 +281,8 @@ export async function generateAuditPdfAttachment(
     base64,
     sizeBytes: blob.size,
     blob,
+    auditId: audit.id,
+    reportId: audit.reportId || `rpt-${audit.id}`,
   };
 }
 

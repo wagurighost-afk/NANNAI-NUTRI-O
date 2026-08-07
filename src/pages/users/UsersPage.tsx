@@ -271,10 +271,10 @@ export function UsersPage() {
 
       <Card className="mb-4">
         <p className="text-sm text-ink-muted">
-          Administradores ativos: <strong>{activeAdmins}</strong> (mínimo: 1). A
-          administradora inicial é <strong>Renata Fernanda</strong> (Nutricionista
-          + Administradora). Unidades, setores, usuários, destinatários e
-          auditorias devem ser cadastrados por ela.
+          Administradores ativos: <strong>{activeAdmins}</strong> (mínimo: 1).
+          Administradores fundadores: <strong>David Oliveira</strong> e{' '}
+          <strong>Mauro José</strong>. <strong>Renata Fernanda</strong> atua como
+          usuária / nutricionista (sem perfil de administrador).
         </p>
       </Card>
 

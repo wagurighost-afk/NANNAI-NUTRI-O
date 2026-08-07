@@ -8,9 +8,9 @@ import type {
   User,
 } from '../types';
 import {
-  buildSeedAdmin,
   buildSeedSectors,
   buildSeedUnit,
+  buildSeedUsers,
   nutrisanoQuestionnaire,
   SEED_UNIT_ID,
 } from './seedConfig';
@@ -41,8 +41,8 @@ export const defaultAppSettings: AppSettings = {
   },
 };
 
-/** Conta administrativa inicial — única usuário criada automaticamente */
-export const mockUsers: User[] = [buildSeedAdmin(SEED_UNIT_ID)];
+/** Contas iniciais: admins fundadores + nutricionista */
+export const mockUsers: User[] = buildSeedUsers(SEED_UNIT_ID);
 
 /** Unidade e setores oficiais (também garantidos pelo seed idempotente) */
 export const mockUnits: Unit[] = [buildSeedUnit()];

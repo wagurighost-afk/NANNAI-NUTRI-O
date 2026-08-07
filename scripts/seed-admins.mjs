@@ -1,11 +1,17 @@
 /**
- * Seed Renata Fernanda (única administradora inicial) into Firebase Authentication + Firestore.
+ * Seed contas iniciais no Firebase Authentication + Firestore:
+ * - David Oliveira e Mauro José — administradores fundadores
+ * - Renata Fernanda — usuária / nutricionista
  *
  * Usage:
  *   1. Download service account JSON from Firebase Console
  *   2. Set GOOGLE_APPLICATION_CREDENTIALS=./serviceAccount.json
  *   3. Set FIREBASE_PROJECT_ID=your-project-id
- *   4. Optional: SEED_ADMIN_RENATA_PASSWORD (default Nannai@2026)
+ *   4. Optional passwords:
+ *        SEED_ADMIN_DAVID_PASSWORD
+ *        SEED_ADMIN_MAURO_PASSWORD
+ *        SEED_USER_RENATA_PASSWORD
+ *      (default Nannai@2026)
  *   5. node scripts/seed-admins.mjs
  *
  * Never commit service account keys or production passwords.
@@ -17,13 +23,27 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 
-const ADMINS = [
+const USERS = [
+  {
+    name: 'David Oliveira',
+    email: 'david.oliveira@nannai.com.br',
+    professionalRole: 'Administrador',
+    role: 'admin',
+    passwordEnv: 'SEED_ADMIN_DAVID_PASSWORD',
+  },
+  {
+    name: 'Mauro José',
+    email: 'mauro.jose@nannai.net.br',
+    professionalRole: 'Administrador',
+    role: 'admin',
+    passwordEnv: 'SEED_ADMIN_MAURO_PASSWORD',
+  },
   {
     name: 'Renata Fernanda',
     email: 'renata.fernanda@nannai.com.br',
     professionalRole: 'Nutricionista',
-    role: 'admin',
-    passwordEnv: 'SEED_ADMIN_RENATA_PASSWORD',
+    role: 'auditor',
+    passwordEnv: 'SEED_USER_RENATA_PASSWORD',
   },
 ];
 
@@ -49,7 +69,23 @@ const ALL_PERMISSIONS = [
   'history.view',
 ];
 
+const NUTRITIONIST_PERMISSIONS = [
+  'audits.perform',
+  'audits.finalize',
+  'audits.sign',
+  'action_plans.manage',
+  'action_plans.validate',
+  'reports.send',
+  'reports.generate',
+  'indicators.view',
+];
+
 const DEFAULT_PASSWORD = 'Nannai@2026';
+
+function permissionsFor(role) {
+  if (role === 'admin') return [...ALL_PERMISSIONS];
+  return [...NUTRITIONIST_PERMISSIONS];
+}
 
 async function main() {
   let admin;
@@ -82,29 +118,30 @@ async function main() {
   const db = admin.firestore();
   const now = new Date().toISOString();
 
-  for (const a of ADMINS) {
+  for (const a of USERS) {
     const password = process.env[a.passwordEnv] || DEFAULT_PASSWORD;
+    const email = a.email.toLowerCase();
     let user;
     try {
-      user = await auth.getUserByEmail(a.email);
-      console.log(`Usuário já existe: ${a.email} (${user.uid})`);
+      user = await auth.getUserByEmail(email);
+      console.log(`Usuário já existe: ${email} (${user.uid})`);
     } catch {
       user = await auth.createUser({
-        email: a.email,
+        email,
         password,
         displayName: a.name,
         emailVerified: false,
       });
-      console.log(`Criado Auth: ${a.email} (${user.uid})`);
+      console.log(`Criado Auth: ${email} (${user.uid})`);
     }
 
     const profile = {
       uid: user.uid,
       name: a.name,
-      email: a.email,
+      email,
       role: a.role,
       professionalRole: a.professionalRole,
-      permissions: ALL_PERMISSIONS,
+      permissions: permissionsFor(a.role),
       unitIds: [],
       sectorIds: [],
       active: true,
@@ -114,7 +151,9 @@ async function main() {
     };
 
     await db.collection('users').doc(user.uid).set(profile, { merge: true });
-    console.log(`Firestore perfil atualizado: users/${user.uid}`);
+    console.log(
+      `Firestore perfil atualizado: users/${user.uid} (${a.role} / ${a.professionalRole})`,
+    );
   }
 
   console.log('Seed concluído. Altere a senha inicial no primeiro acesso.');

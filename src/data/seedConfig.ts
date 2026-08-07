@@ -8,11 +8,15 @@ import type {
 import { permissionsFor } from '../utils/permissions';
 import { nutrisanoQuestionnaire } from './nutrisanoQuestionnaire';
 
-export const SEED_VERSION = 2;
+export const SEED_VERSION = 3;
 export const SEED_GROUP_ID = 'grp-gestao-nutricao';
 
 export const SEED_UNIT_ID = 'unit-nannai-muro-alto';
-export const SEED_ADMIN_ID = 'uid-renata-fernanda';
+export const SEED_FOUNDER_DAVID_ID = 'uid-david-oliveira';
+export const SEED_FOUNDER_MAURO_ID = 'uid-mauro-jose';
+export const SEED_NUTRITIONIST_ID = 'uid-renata-fernanda';
+/** @deprecated Use SEED_FOUNDER_* — mantido só por compatibilidade de imports */
+export const SEED_ADMIN_ID = SEED_FOUNDER_DAVID_ID;
 
 export const SECTOR_NAMES = [
   'Cozinha Principal',
@@ -93,22 +97,71 @@ export function buildSeedSectors(unitId: string): Sector[] {
   }));
 }
 
-export function buildSeedAdmin(unitId: string): User {
+const SEED_USER_TS = '2026-01-01T10:00:00Z';
+
+/** Administradores fundadores */
+export function buildSeedFounderAdmins(unitId: string): User[] {
+  return [
+    {
+      id: SEED_FOUNDER_DAVID_ID,
+      uid: SEED_FOUNDER_DAVID_ID,
+      name: 'David Oliveira',
+      email: 'david.oliveira@nannai.com.br',
+      role: 'admin',
+      professionalRole: 'Administrador',
+      permissions: permissionsFor('admin', 'Administrador'),
+      unitIds: [unitId],
+      sectorIds: [],
+      active: true,
+      isActive: true,
+      createdAt: SEED_USER_TS,
+      updatedAt: SEED_USER_TS,
+    },
+    {
+      id: SEED_FOUNDER_MAURO_ID,
+      uid: SEED_FOUNDER_MAURO_ID,
+      name: 'Mauro José',
+      email: 'mauro.jose@nannai.net.br',
+      role: 'admin',
+      professionalRole: 'Administrador',
+      permissions: permissionsFor('admin', 'Administrador'),
+      unitIds: [unitId],
+      sectorIds: [],
+      active: true,
+      isActive: true,
+      createdAt: SEED_USER_TS,
+      updatedAt: SEED_USER_TS,
+    },
+  ];
+}
+
+/** Usuária / nutricionista (sem perfil de administrador) */
+export function buildSeedNutritionist(unitId: string): User {
   return {
-    id: SEED_ADMIN_ID,
-    uid: SEED_ADMIN_ID,
+    id: SEED_NUTRITIONIST_ID,
+    uid: SEED_NUTRITIONIST_ID,
     name: 'Renata Fernanda',
     email: 'renata.fernanda@nannai.com.br',
-    role: 'admin',
+    role: 'auditor',
     professionalRole: 'Nutricionista',
-    permissions: permissionsFor('admin', 'Nutricionista'),
+    permissions: permissionsFor('auditor', 'Nutricionista'),
     unitIds: [unitId],
     sectorIds: [],
     active: true,
     isActive: true,
-    createdAt: '2026-01-01T10:00:00Z',
-    updatedAt: '2026-01-01T10:00:00Z',
+    createdAt: SEED_USER_TS,
+    updatedAt: SEED_USER_TS,
   };
+}
+
+/** Contas iniciais: 2 admins fundadores + nutricionista */
+export function buildSeedUsers(unitId: string): User[] {
+  return [...buildSeedFounderAdmins(unitId), buildSeedNutritionist(unitId)];
+}
+
+/** @deprecated Use buildSeedFounderAdmins / buildSeedUsers */
+export function buildSeedAdmin(unitId: string): User {
+  return buildSeedFounderAdmins(unitId)[0];
 }
 
 export function buildSeedRecipients(unitId: string): ReportRecipient[] {

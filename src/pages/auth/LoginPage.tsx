@@ -67,17 +67,31 @@ export function LoginPage() {
           <div className="mb-4 flex items-center gap-2">
             <Shield className="text-olive-600" size={18} />
             <h2 className="font-display text-lg font-semibold text-wine-700">
-              Conta administrativa
+              Contas iniciais
             </h2>
           </div>
 
           <div className="space-y-3">
             <AdminPerson
+              name="David Oliveira"
+              title="Administrador"
+              badge="Admin fundador"
+              email="david.oliveira@nannai.com.br"
+              profile="Administrador fundador"
+            />
+            <AdminPerson
+              name="Mauro José"
+              title="Administrador"
+              badge="Admin fundador"
+              email="mauro.jose@nannai.net.br"
+              profile="Administrador fundador"
+            />
+            <AdminPerson
               name="Renata Fernanda"
               title="Nutricionista"
-              badge="Administradora"
+              badge="Usuária"
               email="renata.fernanda@nannai.com.br"
-              profile="Administradora e Nutricionista"
+              profile="Usuária / Nutricionista"
             />
           </div>
 
@@ -90,7 +104,8 @@ export function LoginPage() {
               {INITIAL_ADMIN_PASSWORD}
             </p>
             <p className="mt-2 text-xs leading-relaxed text-ink-muted">
-              Esta é uma senha temporária. No primeiro acesso, use{' '}
+              Esta é uma senha temporária compartilhada nas contas iniciais. No
+              primeiro acesso, use{' '}
               <strong className="text-ink">Esqueci minha senha</strong> ou altere
               a senha nas configurações — a troca é obrigatória por segurança.
             </p>

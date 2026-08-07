@@ -133,14 +133,38 @@ export function buildUserProfile(input: {
   };
 }
 
-/** Initial administrator seeded into Auth + Firestore */
+/** Administradores fundadores (Auth + Firestore) */
 export const INITIAL_ADMINS = [
   {
-    name: 'Renata Fernanda',
-    email: 'renata.fernanda@nannai.com.br',
-    professionalRole: 'Nutricionista' as const,
+    name: 'David Oliveira',
+    email: 'david.oliveira@nannai.com.br',
+    professionalRole: 'Administrador' as const,
     role: 'admin' as const,
-    seedPasswordEnv: 'SEED_ADMIN_RENATA_PASSWORD',
+    seedPasswordEnv: 'SEED_ADMIN_DAVID_PASSWORD',
     defaultSeedPassword: 'Nannai@2026',
   },
+  {
+    name: 'Mauro José',
+    email: 'mauro.jose@nannai.net.br',
+    professionalRole: 'Administrador' as const,
+    role: 'admin' as const,
+    seedPasswordEnv: 'SEED_ADMIN_MAURO_PASSWORD',
+    defaultSeedPassword: 'Nannai@2026',
+  },
+] as const;
+
+/** Usuária inicial nutricionista (sem admin) */
+export const INITIAL_NUTRITIONIST = {
+  name: 'Renata Fernanda',
+  email: 'renata.fernanda@nannai.com.br',
+  professionalRole: 'Nutricionista' as const,
+  role: 'auditor' as const,
+  seedPasswordEnv: 'SEED_USER_RENATA_PASSWORD',
+  defaultSeedPassword: 'Nannai@2026',
+} as const;
+
+/** Todas as contas iniciais (admins + nutricionista) */
+export const INITIAL_SEED_USERS = [
+  ...INITIAL_ADMINS,
+  INITIAL_NUTRITIONIST,
 ] as const;

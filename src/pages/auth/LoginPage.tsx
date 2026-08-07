@@ -3,22 +3,12 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import {
-  Eye,
-  EyeOff,
-  KeyRound,
-  Lock,
-  Mail,
-  Shield,
-  UserRound,
-} from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, Shield } from 'lucide-react';
 import logo from '../../assets/logo-nannai.png';
 import { Button } from '../../components/ui/Button';
+import { BRAND } from '../../data/mock';
 import { useAuthStore } from '../../stores/authStore';
 import { cn } from '../../utils';
-
-/** Senha inicial oficial dos administradores — deve ser alterada no primeiro acesso */
-export const INITIAL_ADMIN_PASSWORD = 'Nannai@2026';
 
 const schema = z.object({
   email: z.string().email('E-mail inválido'),
@@ -54,67 +44,24 @@ export function LoginPage() {
   };
 
   return (
-    <div className="mx-auto grid w-full max-w-6xl flex-1 grid-cols-1 gap-8 px-4 py-8 lg:grid-cols-2 lg:items-center lg:gap-12 lg:px-8 lg:py-10">
-      {/* Coluna esquerda — marca + conta administrativa */}
-      <section className="flex flex-col items-center lg:items-start">
+    <div className="mx-auto grid w-full max-w-6xl flex-1 grid-cols-1 px-4 py-8 sm:px-6 md:py-12 lg:grid-cols-2 lg:items-center lg:gap-16 lg:px-10 lg:py-16">
+      {/* Identidade visual */}
+      <section className="flex flex-col items-center justify-center text-center lg:min-h-[28rem] lg:items-center lg:px-4">
         <img
           src={logo}
           alt="NANNAI Nutrição — Alimentar bem, viver melhor"
-          className="h-44 w-auto max-w-[300px] object-contain md:h-52 lg:h-56"
+          className="h-40 w-auto max-w-[280px] object-contain sm:h-48 md:h-56 lg:h-64 lg:max-w-[340px]"
         />
-
-        <div className="mt-8 w-full max-w-md rounded-2xl border border-cream-200 bg-white/90 p-5 shadow-card backdrop-blur-sm">
-          <div className="mb-4 flex items-center gap-2">
-            <Shield className="text-olive-600" size={18} />
-            <h2 className="font-display text-lg font-semibold text-wine-700">
-              Contas iniciais
-            </h2>
-          </div>
-
-          <div className="space-y-3">
-            <AdminPerson
-              name="David Oliveira"
-              title="Administrador"
-              badge="Admin fundador"
-              email="david.oliveira@nannai.com.br"
-              profile="Administrador fundador"
-            />
-            <AdminPerson
-              name="Mauro José"
-              title="Administrador"
-              badge="Admin fundador"
-              email="mauro.jose@nannai.net.br"
-              profile="Administrador fundador"
-            />
-            <AdminPerson
-              name="Renata Fernanda"
-              title="Nutricionista"
-              badge="Usuária"
-              email="renata.fernanda@nannai.com.br"
-              profile="Usuária / Nutricionista"
-            />
-          </div>
-
-          <div className="mt-4 rounded-xl border border-gold-200 bg-gold-50/80 p-3">
-            <div className="mb-1.5 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gold-800">
-              <KeyRound size={14} />
-              Senha inicial
-            </div>
-            <p className="font-mono text-base font-semibold tracking-wide text-wine-700">
-              {INITIAL_ADMIN_PASSWORD}
-            </p>
-            <p className="mt-2 text-xs leading-relaxed text-ink-muted">
-              Esta é uma senha temporária compartilhada nas contas iniciais. No
-              primeiro acesso, use{' '}
-              <strong className="text-ink">Esqueci minha senha</strong> ou altere
-              a senha nas configurações — a troca é obrigatória por segurança.
-            </p>
-          </div>
-        </div>
+        <p className="mt-6 font-display text-xl font-medium tracking-wide text-olive-700 sm:text-2xl">
+          {BRAND.slogan}
+        </p>
+        <p className="mt-2 text-sm font-medium uppercase tracking-[0.18em] text-wine-700/80 sm:text-base">
+          {BRAND.initialUnit}
+        </p>
       </section>
 
-      {/* Coluna direita — formulário */}
-      <section className="flex justify-center lg:justify-end">
+      {/* Formulário */}
+      <section className="mt-10 flex justify-center lg:mt-0 lg:justify-end">
         <div className="w-full max-w-md rounded-2xl border border-cream-200 bg-white p-6 shadow-soft sm:p-8">
           <h1 className="font-display text-3xl font-semibold text-olive-700">
             Entrar
@@ -223,44 +170,6 @@ export function LoginPage() {
           </div>
         </div>
       </section>
-    </div>
-  );
-}
-
-function AdminPerson({
-  name,
-  title,
-  badge,
-  email,
-  profile,
-}: {
-  name: string;
-  title: string;
-  badge: string;
-  email: string;
-  profile: string;
-}) {
-  return (
-    <div className="rounded-xl border border-cream-200 bg-cream-50/70 p-3">
-      <div className="flex items-start gap-3">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-olive-100 text-olive-700">
-          <UserRound size={18} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm font-semibold text-ink">
-              {name}
-              <span className="font-normal text-ink-muted"> — {title}</span>
-            </p>
-            <span className="rounded-md bg-olive-700 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-cream-50">
-              {badge}
-            </span>
-          </div>
-          <p className="mt-1 truncate text-xs text-ink-muted">{email}</p>
-          <p className="text-xs text-ink-muted">Cargo: {title}</p>
-          <p className="text-xs text-ink-muted">Perfil: {profile}</p>
-        </div>
-      </div>
     </div>
   );
 }

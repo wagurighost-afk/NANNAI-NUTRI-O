@@ -14,12 +14,13 @@ sem duplicar registros):
 - Unidade **NANNAI Muro Alto**
 - 20 setores operacionais
 - Administradores fundadores **David Oliveira** e **Mauro José**
-- Usuária / nutricionista **Renata Fernanda**
+- **Renata Fernanda** (Nutricionista e Administradora)
 - Destinatários dos relatórios (não são usuários do sistema)
 - Questionário oficial **Auditoria Nutrisano** (119 perguntas · nota máxima 5540)
 
 Auditorias, planos e indicadores começam vazios — sem dados fictícios. Novos
-usuários são cadastrados pelos administradores.
+usuários são cadastrados pelos administradores. A tela de login não exibe
+credenciais nem dados administrativos.
 
 **Logo:** [`src/assets/logo-nannai.png`](src/assets/logo-nannai.png) · também em [`public/logo-nannai.png`](public/logo-nannai.png)
 ## Stack
@@ -95,7 +96,7 @@ Stub: `functions/sendAuditReportEmail.js`
 |------|--------|-------|--------|
 | David Oliveira | david.oliveira@nannai.com.br | Administrador | Admin fundador |
 | Mauro José | mauro.jose@nannai.net.br | Administrador | Admin fundador |
-| Renata Fernanda | renata.fernanda@nannai.com.br | Nutricionista | Usuária |
+| Renata Fernanda | renata.fernanda@nannai.com.br | Nutricionista | Administradora |
 
 Demais usuários são cadastrados pelos administradores. Destinatários de relatórios
 existem apenas em **Destinatários dos Relatórios** e não são contas do sistema.

@@ -272,9 +272,8 @@ export function UsersPage() {
       <Card className="mb-4">
         <p className="text-sm text-ink-muted">
           Administradores ativos: <strong>{activeAdmins}</strong> (mínimo: 1).
-          Administradores fundadores: <strong>David Oliveira</strong> e{' '}
-          <strong>Mauro José</strong>. <strong>Renata Fernanda</strong> atua como
-          usuária / nutricionista (sem perfil de administrador).
+          Contas administrativas iniciais: David Oliveira, Mauro José e Renata
+          Fernanda (Nutricionista e Administradora).
         </p>
       </Card>
 

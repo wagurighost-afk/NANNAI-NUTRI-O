@@ -1,7 +1,7 @@
 /**
- * Seed contas iniciais no Firebase Authentication + Firestore:
+ * Seed contas administrativas iniciais no Firebase Authentication + Firestore:
  * - David Oliveira e Mauro José — administradores fundadores
- * - Renata Fernanda — usuária / nutricionista
+ * - Renata Fernanda — nutricionista e administradora
  *
  * Usage:
  *   1. Download service account JSON from Firebase Console
@@ -10,7 +10,7 @@
  *   4. Optional passwords:
  *        SEED_ADMIN_DAVID_PASSWORD
  *        SEED_ADMIN_MAURO_PASSWORD
- *        SEED_USER_RENATA_PASSWORD
+ *        SEED_ADMIN_RENATA_PASSWORD
  *      (default Nannai@2026)
  *   5. node scripts/seed-admins.mjs
  *
@@ -42,8 +42,8 @@ const USERS = [
     name: 'Renata Fernanda',
     email: 'renata.fernanda@nannai.com.br',
     professionalRole: 'Nutricionista',
-    role: 'auditor',
-    passwordEnv: 'SEED_USER_RENATA_PASSWORD',
+    role: 'admin',
+    passwordEnv: 'SEED_ADMIN_RENATA_PASSWORD',
   },
 ];
 
@@ -69,23 +69,7 @@ const ALL_PERMISSIONS = [
   'history.view',
 ];
 
-const NUTRITIONIST_PERMISSIONS = [
-  'audits.perform',
-  'audits.finalize',
-  'audits.sign',
-  'action_plans.manage',
-  'action_plans.validate',
-  'reports.send',
-  'reports.generate',
-  'indicators.view',
-];
-
 const DEFAULT_PASSWORD = 'Nannai@2026';
-
-function permissionsFor(role) {
-  if (role === 'admin') return [...ALL_PERMISSIONS];
-  return [...NUTRITIONIST_PERMISSIONS];
-}
 
 async function main() {
   let admin;
@@ -141,7 +125,7 @@ async function main() {
       email,
       role: a.role,
       professionalRole: a.professionalRole,
-      permissions: permissionsFor(a.role),
+      permissions: [...ALL_PERMISSIONS],
       unitIds: [],
       sectorIds: [],
       active: true,

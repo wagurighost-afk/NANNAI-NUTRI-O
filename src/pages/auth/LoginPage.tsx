@@ -3,12 +3,15 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Eye, EyeOff, Lock, Mail, Shield } from 'lucide-react';
+import { Eye, EyeOff, KeyRound, Lock, Mail, Shield } from 'lucide-react';
 import logo from '../../assets/logo-nannai.png';
 import { Button } from '../../components/ui/Button';
 import { BRAND } from '../../data/mock';
 import { useAuthStore } from '../../stores/authStore';
 import { cn } from '../../utils';
+
+/** Senha inicial das contas — trocar no primeiro acesso */
+const INITIAL_PASSWORD = 'Nannai@2026';
 
 const schema = z.object({
   email: z.string().email('E-mail inválido'),
@@ -58,6 +61,16 @@ export function LoginPage() {
         <p className="mt-2 text-sm font-medium uppercase tracking-[0.18em] text-wine-700/80 sm:text-base">
           {BRAND.initialUnit}
         </p>
+
+        <div className="mt-8 w-full max-w-xs rounded-xl border border-gold-200 bg-gold-50/80 px-4 py-3 text-left">
+          <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gold-800">
+            <KeyRound size={14} />
+            Senha inicial
+          </div>
+          <p className="font-mono text-base font-semibold tracking-wide text-wine-700">
+            {INITIAL_PASSWORD}
+          </p>
+        </div>
       </section>
 
       {/* Formulário */}
